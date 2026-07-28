@@ -1,0 +1,172 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  studentProfile Student?
+  adminProfile   Admin?
+  facultyProfile Faculty?
+
+  sessions  Session[]
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  permissions Permission[]
+  users       User[]
+}
+
+model Permission {
+  id    String @id @default(uuid())
+  name  String @unique
+  roles Role[]
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Faculty {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+}
+
+model Student {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rollNumber   String      @unique
+  photo        String?
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  courseId     String
+  course       Course      @relation(fields: [courseId], references: [id])
+  year         Int
+  
+  attendances      Attendance[]
+  devices          Device[]
+  notifications    Notification[]
+  locationEvents   LocationEvent[]
+}
+
+model Department {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  students Student[]
+  faculties Faculty[]
+  courses  Course[]
+}
+
+model Course {
+  id           String     @id @default(uuid())
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  students     Student[]
+}
+
+model Hostel {
+  id   String @id @default(uuid())
+  name String @unique
+}
+
+model CampusZone {
+  id          String   @id @default(uuid())
+  name        String
+  polygonData Json     
+  createdAt   DateTime @default(now())
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  status    String   // Present, Absent, Late
+  checkIn   DateTime?
+  checkOut  DateTime?
+  duration  Int?     // Duration in minutes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([studentId, date])
+}
+
+model Device {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  deviceModel String?
+  osVersion   String?
+  appVersion  String?
+  lastActive  DateTime @default(now())
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type      String   
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+}
+
+model LocationEvent {
+  id            String   @default(uuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  latitude      Float
+  longitude     Float
+  accuracy      Float?
+  speed         Float?
+  altitude      Float?
+  heading       Float?
+  batteryLevel  Float?
+  networkType   String?
+  gpsEnabled    Boolean?
+  deviceModel   String?
+  osVersion     String?
+  appVersion    String?
+  timestamp     DateTime @default(now())
+  
+  @@id([id, timestamp])
+  @@index([studentId])
+  @@index([timestamp(sort: Desc)])
+}

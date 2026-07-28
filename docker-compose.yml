@@ -1,0 +1,15 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: nfc-campus-timescaledb
+    environment:
+      POSTGRES_DB: nfc_campus
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5440:5432"
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+
+volumes:
+  timescale-data:

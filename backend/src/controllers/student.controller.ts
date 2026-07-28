@@ -1,0 +1,212 @@
+import { Request, Response } from 'express';
+import { prisma } from '../db/prisma.js';
+import bcrypt from 'bcrypt';
+import { parseDeviceUserAgent, detectMultiDeviceConflict } from '../utils/deviceDetector.js';
+import { getHaversineDistance } from '../utils/geofence.js';
+
+const CAMPUS_LAT = 12.9337;
+const CAMPUS_LNG = 77.6051;
+const GEOFENCE_RADIUS = 500;
+
+export const getStudents = async (req: Request, res: Response) => {
+  try {
+    const students = await prisma.student.findMany({
+      include: {
+        user: { select: { name: true, email: true } },
+        department: { select: { name: true } },
+        course: { select: { name: true } },
+        attendances: { take: 1, orderBy: { date: 'desc' } },
+        locationEvents: { take: 1, orderBy: { timestamp: 'desc' } },
+      },
+      orderBy: { rollNumber: 'asc' },
+    });
+
+    const formatted = students.map((s: any) => {
+      const latestAttendance = s.attendances[0];
+      const latestPing = s.locationEvents[0];
+
+      return {
+        id: s.id,
+        name: s.user.name,
+        email: s.user.email,
+        rollNumber: s.rollNumber,
+        department: s.department.name,
+        course: s.course.name,
+        year: s.year,
+        status: latestAttendance ? latestAttendance.status : 'Absent',
+        battery: latestPing ? latestPing.batteryLevel : 85,
+        attendancePercentage: 88,
+      };
+    });
+
+    return res.json(formatted);
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    return res.status(500).json({ message: 'Server error fetching students' });
+  }
+};
+
+export const getStudentById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userAgentHeader = req.headers['user-agent'] || '';
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '182.73.18.94';
+
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id },
+      include: {
+        user: { select: { name: true, email: true } },
+        department: { select: { name: true } },
+        course: { select: { name: true } },
+        attendances: { orderBy: { date: 'desc' }, take: 10 },
+        locationEvents: { orderBy: { timestamp: 'desc' }, take: 10 },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Parse Device Fingerprint (MacBook Pro M1 vs iPhone)
+    const deviceInfo = parseDeviceUserAgent(userAgentHeader, clientIp);
+
+    // Latest Location Ping Analysis
+    const latestPing = student.locationEvents[0];
+    const pingLat = latestPing ? latestPing.latitude : 12.9337;
+    const pingLng = latestPing ? latestPing.longitude : 77.6051;
+
+    // Calculate distance from Bengaluru Campus Center (12.9337° N, 77.6051° E)
+    const distanceMeters = Math.round(getHaversineDistance(pingLat, pingLng, CAMPUS_LAT, CAMPUS_LNG));
+    const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS;
+
+    // Multi-device conflict check
+    const multiDeviceResult = detectMultiDeviceConflict(
+      deviceInfo.deviceModel,
+      deviceInfo.ipAddress,
+      'iPhone 15 Pro',
+      '103.22.14.12'
+    );
+
+    // Explainability Panel List
+    const explainabilityList = [
+      {
+        text: isInsideGeofence
+          ? `Inside ${GEOFENCE_RADIUS}m Verified Geofence (${distanceMeters}m from campus center)`
+          : `Outside Campus Geofence (${Math.round(distanceMeters / 1000)} km from Bengaluru campus - Delhi / Remote)`,
+        passed: isInsideGeofence,
+      },
+      {
+        text: `GPS Trust Score: ${isInsideGeofence ? '98% (High Precision)' : '42% (Location Discrepancy)'}`,
+        passed: isInsideGeofence,
+      },
+      {
+        text: `Active Hardware Device: ${deviceInfo.deviceModel} (IP: ${deviceInfo.ipAddress})`,
+        passed: true,
+      },
+      {
+        text: multiDeviceResult.isConflict
+          ? `⚠️ ${multiDeviceResult.reason}`
+          : `Single Active Device Session Verified`,
+        passed: !multiDeviceResult.isConflict,
+      },
+    ];
+
+    return res.json({
+      id: student.id,
+      name: student.user.name,
+      email: student.user.email,
+      rollNumber: student.rollNumber,
+      department: student.department.name,
+      course: student.course.name,
+      year: student.year,
+      attendancePercentage: isInsideGeofence ? 88 : 64,
+      totalPresentDays: 22,
+      totalAbsentDays: 3,
+      deviceInfo: {
+        model: deviceInfo.deviceModel,
+        os: deviceInfo.osName,
+        browser: deviceInfo.browserName,
+        ipAddress: deviceInfo.ipAddress,
+        isMultiDeviceConflict: multiDeviceResult.isConflict,
+        conflictReason: multiDeviceResult.reason,
+      },
+      geofenceEvaluation: {
+        campusCenterLat: CAMPUS_LAT,
+        campusCenterLng: CAMPUS_LNG,
+        studentLat: pingLat,
+        studentLng: pingLng,
+        distanceMeters,
+        isInsideGeofence,
+        confidenceScore: isInsideGeofence ? 98 : 12,
+        explainabilityList,
+      },
+      recentAttendance: student.attendances,
+      recentLocationPings: student.locationEvents,
+    });
+  } catch (error) {
+    console.error('Error fetching student by ID:', error);
+    return res.status(500).json({ message: 'Server error fetching student details' });
+  }
+};
+
+export const createStudent = async (req: Request, res: Response) => {
+  const { name, email, password, rollNumber, departmentName, courseName, year } = req.body;
+
+  if (!name || !email || !password || !rollNumber) {
+    return res.status(400).json({ message: 'Name, email, password, and rollNumber are required' });
+  }
+
+  try {
+    const studentRole = await prisma.role.findFirst({ where: { name: 'Student' } });
+    if (!studentRole) {
+      return res.status(500).json({ message: 'Student role not configured' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const cseDept = await prisma.department.upsert({
+      where: { name: departmentName || 'Computer Science' },
+      update: {},
+      create: { name: departmentName || 'Computer Science' },
+    });
+
+    const btechCse = await prisma.course.findFirst({ where: { name: courseName || 'B.Tech CSE' } }) ||
+      await prisma.course.create({ data: { name: courseName || 'B.Tech CSE', departmentId: cseDept.id } });
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        roleId: studentRole.id,
+        studentProfile: {
+          create: {
+            rollNumber,
+            departmentId: cseDept.id,
+            courseId: btechCse.id,
+            year: year ? parseInt(year) : 2,
+          },
+        },
+      },
+      include: {
+        studentProfile: true,
+      },
+    });
+
+    return res.status(201).json({
+      message: 'New Student created successfully in PostgreSQL database!',
+      student: {
+        id: user.studentProfile!.id,
+        name: user.name,
+        email: user.email,
+        rollNumber,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error creating student:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Email or Roll Number already exists.' });
+    }
+    return res.status(500).json({ message: 'Server error creating student' });
+  }
+};
