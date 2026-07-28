@@ -1,9 +1,13 @@
 import pg from "pg";
 import type { QueryResultRow } from "pg";
-import { env } from "../config/env.js";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:5440/campus_attendance?schema=public";
 
 export const pool = new pg.Pool({
-  connectionString: env.DATABASE_URL,
+  connectionString,
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000

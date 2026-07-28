@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:5440/campus_attendance?schema=public";
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
