@@ -5,12 +5,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: '*', // In production, restrict to frontend URL
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
@@ -21,10 +21,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
   });
-  
-  // Custom events will go here
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} bound to 0.0.0.0`);
 });
