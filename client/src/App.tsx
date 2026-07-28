@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
@@ -21,9 +20,10 @@ import SystemHealth from './pages/SystemHealth';
 import AIAssistant from './pages/AIAssistant';
 import Login from './pages/Login';
 
-// Set dynamic API base URL targeting Express backend on port 3000
-const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-axios.defaults.baseURL = `http://${hostname}:3000`;
+// Configure Axios: If VITE_API_BASE_URL is set, use it; otherwise use relative /api path (proxied by Vite/Nginx)
+if (import.meta.env.VITE_API_BASE_URL) {
+  axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
+}
 
 const queryClient = new QueryClient();
 
