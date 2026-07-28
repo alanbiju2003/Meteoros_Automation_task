@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axios from 'axios';
 import { AuthProvider } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +20,10 @@ import ReplaySimulator from './pages/ReplaySimulator';
 import SystemHealth from './pages/SystemHealth';
 import AIAssistant from './pages/AIAssistant';
 import Login from './pages/Login';
+
+// Set dynamic API base URL targeting Express backend on port 3000
+const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+axios.defaults.baseURL = `http://${hostname}:3000`;
 
 const queryClient = new QueryClient();
 
