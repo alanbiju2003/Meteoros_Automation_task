@@ -16,14 +16,6 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    return `http://${host}:3000`;
-  }
-  return 'http://localhost:3000';
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -37,9 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    // Set default base URL for all axios requests
-    axios.defaults.baseURL = getApiBaseUrl();
-
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -48,8 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const login = async (email: string, password: string): Promise<User> => {
-    const baseUrl = getApiBaseUrl();
-    const res = await axios.post(`${baseUrl}/api/auth/login`, { email, password });
+    // Relative path /api/auth/login proxied by Vite preview on port 5173 -> 127.0.0.1:3000
+    const res = await axios.post('/api/auth/login', { email, password });
     const { token: jwtToken, user: userData } = res.data;
 
     setToken(jwtToken);
