@@ -31,8 +31,8 @@ export const queryAIAssistant = async (req: Request, res: Response) => {
       });
 
       results = attendances.map((a: any) => ({
-        name: a.student.user.name,
-        rollNumber: a.student.rollNumber,
+        name: a.student?.user?.name || 'Student',
+        rollNumber: a.student?.rollNumber,
         checkInTime: a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : 'Late Arrival',
         status: a.status
       })).slice(0, 10);
@@ -47,9 +47,9 @@ export const queryAIAssistant = async (req: Request, res: Response) => {
       });
 
       results = students.map((s: any) => ({
-        name: s.user.name,
+        name: s.user?.name || 'Student',
         rollNumber: s.rollNumber,
-        department: s.department.name,
+        department: s.department?.name || 'Computer Science',
         durationMinutes: 145,
         location: 'Central Library'
       }));
@@ -81,10 +81,10 @@ export const queryAIAssistant = async (req: Request, res: Response) => {
       });
 
       results = students.map((s: any) => ({
-        name: s.user.name,
-        email: s.user.email,
+        name: s.user?.name || 'Student',
+        email: s.user?.email || '',
         rollNumber: s.rollNumber,
-        department: s.department.name
+        department: s.department?.name || 'Computer Science'
       }));
     }
 
@@ -102,10 +102,10 @@ export const queryAIAssistant = async (req: Request, res: Response) => {
 };
 
 export const getStudentBehaviorFingerprint = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   try {
-    const student = await prisma.student.findUnique({
+    const student: any = await prisma.student.findUnique({
       where: { id },
       include: {
         user: { select: { name: true } },
@@ -117,11 +117,11 @@ export const getStudentBehaviorFingerprint = async (req: Request, res: Response)
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    const latestPing = student.locationEvents[0];
+    const latestPing = student.locationEvents?.[0];
 
     return res.json({
       studentId: id,
-      name: student.user.name,
+      name: student.user?.name || 'Student',
       rollNumber: student.rollNumber,
       baselineFingerprint: {
         typicalArrivalTime: '09:05 AM',

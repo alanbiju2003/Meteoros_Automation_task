@@ -27,11 +27,11 @@ export const getStudents = async (req: Request, res: Response) => {
 
       return {
         id: s.id,
-        name: s.user.name,
-        email: s.user.email,
+        name: s.user?.name || 'Student',
+        email: s.user?.email || '',
         rollNumber: s.rollNumber,
-        department: s.department.name,
-        course: s.course.name,
+        department: s.department?.name || 'Computer Science',
+        course: s.course?.name || 'B.Tech CSE',
         year: s.year,
         status: latestAttendance ? latestAttendance.status : 'Absent',
         battery: latestPing ? latestPing.batteryLevel : 85,
@@ -47,12 +47,12 @@ export const getStudents = async (req: Request, res: Response) => {
 };
 
 export const getStudentById = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const userAgentHeader = req.headers['user-agent'] || '';
+  const id = req.params.id as string;
+  const userAgentHeader = (req.headers['user-agent'] as string) || '';
   const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '182.73.18.94';
 
   try {
-    const student = await prisma.student.findUnique({
+    const student: any = await prisma.student.findUnique({
       where: { id },
       include: {
         user: { select: { name: true, email: true } },
@@ -67,15 +67,15 @@ export const getStudentById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Parse Device Fingerprint (MacBook Pro M1 vs iPhone)
+    // Parse Device Fingerprint
     const deviceInfo = parseDeviceUserAgent(userAgentHeader, clientIp);
 
     // Latest Location Ping Analysis
-    const latestPing = student.locationEvents[0];
+    const latestPing = student.locationEvents?.[0];
     const pingLat = latestPing ? latestPing.latitude : 12.9337;
     const pingLng = latestPing ? latestPing.longitude : 77.6051;
 
-    // Calculate distance from Bengaluru Campus Center (12.9337° N, 77.6051° E)
+    // Calculate distance from Bengaluru Campus Center
     const distanceMeters = Math.round(getHaversineDistance(pingLat, pingLng, CAMPUS_LAT, CAMPUS_LNG));
     const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS;
 
@@ -113,11 +113,11 @@ export const getStudentById = async (req: Request, res: Response) => {
 
     return res.json({
       id: student.id,
-      name: student.user.name,
-      email: student.user.email,
+      name: student.user?.name || 'Student',
+      email: student.user?.email || '',
       rollNumber: student.rollNumber,
-      department: student.department.name,
-      course: student.course.name,
+      department: student.department?.name || 'Computer Science',
+      course: student.course?.name || 'B.Tech CSE',
       year: student.year,
       attendancePercentage: isInsideGeofence ? 88 : 64,
       totalPresentDays: 22,
@@ -140,8 +140,8 @@ export const getStudentById = async (req: Request, res: Response) => {
         confidenceScore: isInsideGeofence ? 98 : 12,
         explainabilityList,
       },
-      recentAttendance: student.attendances,
-      recentLocationPings: student.locationEvents,
+      recentAttendance: student.attendances || [],
+      recentLocationPings: student.locationEvents || [],
     });
   } catch (error) {
     console.error('Error fetching student by ID:', error);

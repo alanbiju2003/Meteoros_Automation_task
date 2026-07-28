@@ -1,5 +1,4 @@
-import pkg from '@prisma/client';
-const { PrismaClient } = pkg;
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import dotenv from 'dotenv';
@@ -10,4 +9,4 @@ const connectionString = process.env.DATABASE_URL || "postgresql://postgres:post
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
-export const prisma = new (PrismaClient as any)({ adapter });
+export const prisma = new PrismaClient({ adapter });
