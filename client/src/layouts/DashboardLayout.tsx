@@ -10,8 +10,14 @@ export default function DashboardLayout() {
   const location = useLocation();
 
   useEffect(() => {
-    // If student tries to visit admin routes like /, /students, /map, /settings, redirect to /student-dashboard
-    if (user?.role === 'Student') {
+    // 1. Strict Authentication Guard: Redirect unauthenticated visitors to /login
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    // 2. Role-Based Access Control (RBAC): Restrict Student role to student pages
+    if (user.role === 'Student') {
       const allowedStudentPaths = [
         '/student-dashboard',
         '/student-schedule',
@@ -23,6 +29,10 @@ export default function DashboardLayout() {
       }
     }
   }, [user, location.pathname, navigate]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">

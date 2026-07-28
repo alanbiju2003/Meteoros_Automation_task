@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup, Polygon } from 'react-leaflet';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge } from 'lucide-react';
+import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge, User } from 'lucide-react';
 
 const createCustomMarker = (color: string, label: string) => {
   return L.divIcon({
@@ -28,7 +28,7 @@ const createCustomMarker = (color: string, label: string) => {
 };
 
 export default function ReplaySimulator() {
-  // Time Travel Replay State (0 = 9:00 AM, 100 = 5:00 PM)
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [replayTime, setReplayTime] = useState<number>(50);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
@@ -43,11 +43,29 @@ export default function ReplaySimulator() {
   const campusCenter: [number, number] = [12.9337, 77.6051];
   const geofenceRadius = isRainMode ? 560 : 500;
 
+  // Query 50 Active Students from PostgreSQL
+  const { data: students = [] } = useQuery({
+    queryKey: ['students-list'],
+    queryFn: async () => {
+      const res = await axios.get('/api/students');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
+  // Default to Student 1 if loaded
+  useEffect(() => {
+    if (students.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(students[0].id);
+    }
+  }, [students, selectedStudentId]);
+
+  const selectedStudent = students.find((s: any) => s.id === selectedStudentId) || students[0];
+
   // Evaluate Telemetry & Fraud Detection Mutation
   const evaluateMutation = useMutation({
     mutationFn: async () => {
       const res = await axios.post('/api/telemetry/evaluate', {
-        studentId: 'sim_student_1',
+        studentId: selectedStudentId || 'sim_student_1',
         latitude: testLat,
         longitude: testLng,
         accuracy: testAccuracy,
@@ -90,22 +108,53 @@ export default function ReplaySimulator() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Zap className="h-7 w-7 text-primary" /> Time-Travel Replay & Geofence Simulator
+            <Zap className="h-7 w-7 text-primary" /> Dynamic Student Time-Travel Replay & Simulator
           </h1>
           <p className="text-muted-foreground text-sm">
-            Replay student movement history, test GPS Trust Scores, Fraud/Spoofing Detection, & Adaptive Weather Geofencing.
+            Select any student from PostgreSQL to inspect real telemetry history, GPS Trust Scores, and Adaptive Weather Geofencing.
           </p>
         </div>
 
-        <Button
-          variant={isRainMode ? 'default' : 'outline'}
-          onClick={() => setIsRainMode(!isRainMode)}
-          className={isRainMode ? 'bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2' : 'gap-2 font-semibold'}
-        >
-          <CloudRain className="h-4 w-4" />
-          {isRainMode ? 'Heavy Rain Geofence (560m Adaptive Radius)' : 'Standard Geofence (500m Radius)'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant={isRainMode ? 'default' : 'outline'}
+            onClick={() => setIsRainMode(!isRainMode)}
+            className={isRainMode ? 'bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2' : 'gap-2 font-semibold'}
+          >
+            <CloudRain className="h-4 w-4" />
+            {isRainMode ? 'Heavy Rain Geofence (560m Radius)' : 'Standard Geofence (500m Radius)'}
+          </Button>
+        </div>
       </div>
+
+      {/* Student Selector Card */}
+      <Card className="border border-border/60 shadow-sm p-4 bg-card">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Student for Replay & Simulation</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Showing live PostgreSQL telemetry for: <strong>{selectedStudent?.name || 'Student 1'} ({selectedStudent?.rollNumber})</strong>
+              </p>
+            </div>
+          </div>
+
+          <select
+            value={selectedStudentId}
+            onChange={(e) => setSelectedStudentId(e.target.value)}
+            className="bg-slate-900 border border-slate-700 text-slate-100 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+          >
+            {students.map((s: any) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.rollNumber}) - {s.status}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
 
       {/* Main Grid Layout */}
       <div className="grid gap-6 md:grid-cols-12 items-start">
@@ -134,7 +183,7 @@ export default function ReplaySimulator() {
             <div className="flex-1 w-full h-full relative">
               <MapContainer center={campusCenter} zoom={15} className="h-full w-full">
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  attribution='&copy; OpenStreetMap contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
@@ -144,14 +193,15 @@ export default function ReplaySimulator() {
                   pathOptions={{ color: isRainMode ? '#2563eb' : '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 3 }}
                 />
 
-                {/* Simulated Marker */}
+                {/* Simulated Student Marker */}
                 <Marker
                   position={[testLat, testLng]}
-                  icon={createCustomMarker(evaluationResult?.isSpoofed ? '#ef4444' : '#10b981', 'Simulated Student')}
+                  icon={createCustomMarker(evaluationResult?.isSpoofed ? '#ef4444' : '#10b981', selectedStudent?.name || 'Selected Student')}
                 >
                   <Popup>
                     <div className="text-xs font-semibold">
-                      <p className="font-bold">Simulated Student</p>
+                      <p className="font-bold">{selectedStudent?.name}</p>
+                      <p>Roll: {selectedStudent?.rollNumber}</p>
                       <p>Lat: {testLat.toFixed(5)}</p>
                       <p>Lng: {testLng.toFixed(5)}</p>
                     </div>
@@ -164,7 +214,7 @@ export default function ReplaySimulator() {
           {/* Time Slider */}
           <Card className="border border-border/60 p-4 space-y-2">
             <div className="flex justify-between items-center text-xs font-semibold">
-              <span className="flex items-center gap-1"><Play className="h-3.5 w-3.5 text-primary" /> Time-Travel Timeline</span>
+              <span className="flex items-center gap-1"><Play className="h-3.5 w-3.5 text-primary" /> Time-Travel Timeline (09:00 AM - 05:00 PM)</span>
               <span className="font-mono text-emerald-600 font-bold">{formatReplayHour(replayTime)}</span>
             </div>
             <input
@@ -218,7 +268,7 @@ export default function ReplaySimulator() {
 
               {/* Quick Fraud Simulator Buttons */}
               <div className="space-y-2 pt-1 border-t">
-                <p className="text-[11px] font-semibold text-muted-foreground">Quick Test Scenarios:</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">Quick Test Scenarios for {selectedStudent?.name}:</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
@@ -255,7 +305,7 @@ export default function ReplaySimulator() {
                 disabled={evaluateMutation.isPending}
                 className="w-full font-semibold gap-2"
               >
-                <Gauge className="h-4 w-4" /> Evaluate GPS Trust & Fraud Rules
+                <Gauge className="h-4 w-4" /> Evaluate GPS Trust for {selectedStudent?.name}
               </Button>
             </CardFooter>
           </Card>
@@ -272,6 +322,10 @@ export default function ReplaySimulator() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4 space-y-3 text-xs">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-muted-foreground font-medium">Evaluated Student</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedStudent?.name}</span>
+                </div>
                 <div className="flex justify-between items-center border-b pb-2">
                   <span className="text-muted-foreground font-medium">GPS Trust Score</span>
                   <span className="font-bold text-sm text-emerald-600">{evaluationResult.gpsTrustScore}%</span>
