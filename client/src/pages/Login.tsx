@@ -5,28 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ShieldCheck, Smartphone, MapPin, AlertCircle, KeyRound, Sparkles } from 'lucide-react';
+import { ShieldCheck, Smartphone, MapPin, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'admin' | 'student'>('student');
-  const [email, setEmail] = useState('student1@gmail.com');
-  const [password, setPassword] = useState('student001');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTabChange = (tab: 'admin' | 'student') => {
     setActiveTab(tab);
     setErrorMsg('');
-    if (tab === 'admin') {
-      setEmail('admin@college.edu');
-      setPassword('admin123');
-    } else {
-      setEmail('student1@gmail.com');
-      setPassword('student001');
-    }
+    setEmail('');
+    setPassword('');
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -44,27 +39,6 @@ export default function Login() {
     } catch (err: any) {
       console.error('Login error:', err);
       setErrorMsg(err.response?.data?.message || 'Invalid email or password. Please check your credentials.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loginDemoAccount = async (role: 'admin' | 'student') => {
-    setIsLoading(true);
-    setErrorMsg('');
-    const demoEmail = role === 'admin' ? 'admin@college.edu' : 'student1@gmail.com';
-    const demoPass = role === 'admin' ? 'admin123' : 'student001';
-
-    try {
-      const user = await login(demoEmail, demoPass);
-      if (user.role === 'Student') {
-        navigate('/student-dashboard');
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      if (role === 'admin') navigate('/');
-      else navigate('/student-dashboard');
     } finally {
       setIsLoading(false);
     }
@@ -93,25 +67,25 @@ export default function Login() {
             <button
               type="button"
               onClick={() => handleTabChange('student')}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              className={`py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'student'
                   ? 'bg-emerald-600 text-white shadow-md font-bold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Smartphone className="h-3.5 w-3.5" /> Student Portal
+              <Smartphone className="h-4 w-4" /> Student Portal
             </button>
 
             <button
               type="button"
               onClick={() => handleTabChange('admin')}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              className={`py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'admin'
                   ? 'bg-primary text-primary-foreground shadow-md font-bold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> Administrator
+              <ShieldCheck className="h-4 w-4" /> Administrator
             </button>
           </div>
         </CardHeader>
@@ -124,7 +98,7 @@ export default function Login() {
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleLoginSubmit} className="space-y-3">
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div className="space-y-1.5 text-xs">
               <Label htmlFor="email" className="text-slate-300">
                 {activeTab === 'student' ? 'Student Email' : 'Administrator Email'}
@@ -132,11 +106,11 @@ export default function Login() {
               <Input
                 id="email"
                 type="email"
-                placeholder={activeTab === 'student' ? 'student1@gmail.com' : 'admin@college.edu'}
+                placeholder={activeTab === 'student' ? 'e.g. student1@gmail.com' : 'e.g. admin@college.edu'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-600"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-600 py-5"
               />
             </div>
 
@@ -145,37 +119,24 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-slate-950 border-slate-800 text-slate-100"
+                className="bg-slate-950 border-slate-800 text-slate-100 py-5"
               />
             </div>
 
             <Button
               type="submit"
               disabled={isLoading}
-              className={`w-full font-semibold mt-2 py-5 ${
+              className={`w-full font-semibold py-6 text-sm mt-4 ${
                 activeTab === 'student' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'
               }`}
             >
-              {isLoading ? 'Authenticating...' : `Sign In to ${activeTab === 'student' ? 'Student App' : 'Admin Portal'}`}
+              {isLoading ? 'Authenticating...' : `Sign In to ${activeTab === 'student' ? 'Student Portal' : 'Admin Portal'}`}
             </Button>
           </form>
-
-          {/* Quick Demo Access Bar */}
-          <div className="pt-2 border-t border-slate-800">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => loginDemoAccount(activeTab)}
-              disabled={isLoading}
-              className="w-full border-slate-800 bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold gap-2 py-4"
-            >
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              <span>One-Click Demo Sign In ({activeTab === 'student' ? 'Student Portal' : 'College Admin'})</span>
-            </Button>
-          </div>
         </CardContent>
         <CardFooter className="justify-center border-t border-slate-800/80 py-3 text-[11px] text-slate-500 font-mono">
           <span>Enterprise PERN Stack + TimescaleDB Auth Engine</span>
