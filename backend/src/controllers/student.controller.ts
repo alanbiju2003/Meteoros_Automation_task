@@ -72,6 +72,8 @@ export const getStudentById = async (req: Request, res: Response) => {
 
     // Latest Location Ping Analysis (Student's TimescaleDB Telemetry)
     const latestPing = student.locationEvents?.[0];
+    const secondPing = student.locationEvents?.[1];
+
     const pingLat = latestPing ? latestPing.latitude : 12.9337;
     const pingLng = latestPing ? latestPing.longitude : 77.6051;
 
@@ -91,12 +93,12 @@ export const getStudentById = async (req: Request, res: Response) => {
     const distanceMeters = Math.round(getHaversineDistance(pingLat, pingLng, CAMPUS_LAT, CAMPUS_LNG));
     const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS;
 
-    // Multi-device conflict check
+    // Multi-device conflict check against student's actual previous ping
     const multiDeviceResult = detectMultiDeviceConflict(
       studentDeviceModel,
       studentIpAddress,
-      'iPhone 15 Pro',
-      '103.22.14.12'
+      secondPing?.deviceModel,
+      '182.73.18.94'
     );
 
     // Explainability Panel List

@@ -7,9 +7,9 @@ export interface DeviceFingerprint {
 }
 
 export function parseDeviceUserAgent(userAgent: string, reqIp?: string): DeviceFingerprint {
-  let deviceModel = 'MacBook Pro (Apple M1)';
-  let osName = 'macOS';
-  let browserName = 'Chrome';
+  let deviceModel = 'MacBook Pro (Apple Silicon M1/M2)';
+  let osName = 'macOS 14 Sonoma';
+  let browserName = 'Chrome 123';
   let isMobile = false;
 
   const ua = userAgent.toLowerCase();
@@ -40,7 +40,7 @@ export function parseDeviceUserAgent(userAgent: string, reqIp?: string): DeviceF
   else if (ua.includes('safari')) browserName = 'Safari 17';
   else if (ua.includes('firefox')) browserName = 'Firefox 124';
 
-  const clientIp = reqIp || '182.73.18.94 (Delhi Broadband)';
+  const clientIp = reqIp || '182.73.18.94';
 
   return {
     deviceModel,
@@ -57,23 +57,15 @@ export function detectMultiDeviceConflict(
   prevDeviceModel?: string,
   prevIp?: string
 ): { isConflict: boolean; reason?: string } {
-  if (!prevDeviceModel || !prevIp) {
+  if (!prevDeviceModel || !prevIp || prevDeviceModel === currentDeviceModel) {
     return { isConflict: false };
   }
 
-  // Same account active on 2 different devices (e.g. MacBook M1 AND iPhone)
+  // Same account active on 2 different devices simultaneously
   if (currentDeviceModel !== prevDeviceModel && currentIp !== prevIp) {
     return {
       isConflict: true,
       reason: `Concurrent Multi-Device Conflict: Student logged in simultaneously on '${currentDeviceModel}' (IP: ${currentIp}) and '${prevDeviceModel}' (IP: ${prevIp})! Flagged as Proxy Attendance Sharing Fraud.`,
-    };
-  }
-
-  // Same device model but different IP addresses
-  if (currentIp !== prevIp) {
-    return {
-      isConflict: true,
-      reason: `IP Address Anomaly: Device '${currentDeviceModel}' switched network IP from ${prevIp} to ${currentIp} within 60 seconds.`,
     };
   }
 
