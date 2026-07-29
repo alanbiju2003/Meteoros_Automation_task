@@ -70,18 +70,22 @@ export const getStudentById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Latest Location Ping Analysis (Student's TimescaleDB Telemetry)
+    // Parse Live Request Device User-Agent
+    const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
+
+    // Latest Location Ping Analysis (Student's Telemetry)
     const latestPing = student.locationEvents?.[0];
     const secondPing = student.locationEvents?.[1];
 
     const pingLat = latestPing ? latestPing.latitude : 12.9337;
     const pingLng = latestPing ? latestPing.longitude : 77.6051;
 
-    // Student's Real Recorded Device Specs
-    const studentDeviceModel = latestPing?.deviceModel || 'iPhone 15 Pro (Apple A17 Pro)';
-    const studentOsVersion = latestPing?.osVersion || 'iOS 17.4.1';
-    const studentBatteryLevel = latestPing?.batteryLevel !== undefined ? latestPing.batteryLevel : 82;
-    const studentIpAddress = latestPing ? '182.73.18.94 (Campus Network)' : clientIp;
+    // Real Hardware Device & Battery Specs
+    const studentDeviceModel = latestPing?.deviceModel || liveDevice.deviceModel;
+    const studentOsVersion = latestPing?.osVersion || liveDevice.osName;
+    const studentBrowser = liveDevice.browserName;
+    const studentBatteryLevel = latestPing?.batteryLevel !== undefined ? latestPing.batteryLevel : 85;
+    const studentIpAddress = liveDevice.ipAddress;
 
     // Live Attendance Percentage from PostgreSQL Audit History
     const totalAttendanceDays = student.attendances.length;
@@ -93,12 +97,12 @@ export const getStudentById = async (req: Request, res: Response) => {
     const distanceMeters = Math.round(getHaversineDistance(pingLat, pingLng, CAMPUS_LAT, CAMPUS_LNG));
     const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS;
 
-    // Multi-device conflict check against student's actual previous ping
+    // Multi-device conflict check
     const multiDeviceResult = detectMultiDeviceConflict(
       studentDeviceModel,
       studentIpAddress,
       secondPing?.deviceModel,
-      '182.73.18.94'
+      studentIpAddress
     );
 
     // Explainability Panel List
@@ -114,7 +118,7 @@ export const getStudentById = async (req: Request, res: Response) => {
         passed: isInsideGeofence,
       },
       {
-        text: `Active Student Device: ${studentDeviceModel} (Battery: ${studentBatteryLevel}%, IP: ${studentIpAddress})`,
+        text: `Active Device: ${studentDeviceModel} (${studentOsVersion}, Battery: ${studentBatteryLevel}%, IP: ${studentIpAddress})`,
         passed: true,
       },
       {
@@ -139,7 +143,7 @@ export const getStudentById = async (req: Request, res: Response) => {
       deviceInfo: {
         model: studentDeviceModel,
         os: studentOsVersion,
-        browser: 'SmartCampus Mobile Engine',
+        browser: studentBrowser,
         ipAddress: studentIpAddress,
         batteryLevel: studentBatteryLevel,
         isMultiDeviceConflict: multiDeviceResult.isConflict,
