@@ -7,7 +7,7 @@ const CAMPUS_LNG = 77.6051;
 const GEOFENCE_RADIUS_METERS = 500;
 
 export const checkIn = async (req: Request, res: Response) => {
-  const { studentId, latitude, longitude } = req.body;
+  const { studentId, latitude, longitude, isQrCheckIn, overrideGeofence } = req.body;
 
   if (!studentId) {
     return res.status(400).json({ message: 'studentId is required' });
@@ -21,11 +21,14 @@ export const checkIn = async (req: Request, res: Response) => {
     const distanceMeters = Math.round(getHaversineDistance(lat, lng, CAMPUS_LAT, CAMPUS_LNG));
     const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS_METERS;
 
+    // QR Code Backup Check-In or Manual Override allows check-in regardless of distance
+    const isApprovedCheckIn = isInsideGeofence || isQrCheckIn || overrideGeofence;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const now = new Date();
 
-    const attendanceStatus = isInsideGeofence ? 'Present' : 'Checked Out';
+    const attendanceStatus = isApprovedCheckIn ? 'Present' : 'Checked Out';
 
     const attendance = await prisma.attendance.upsert({
       where: {
@@ -35,31 +38,33 @@ export const checkIn = async (req: Request, res: Response) => {
         },
       },
       update: {
-        checkIn: isInsideGeofence ? now : undefined,
-        checkOut: isInsideGeofence ? null : now,
-        status: attendanceStatus,
+        checkIn: now,
+        checkOut: null,
+        status: 'Present',
       },
       create: {
         studentId,
         date: today,
-        checkIn: isInsideGeofence ? now : null,
-        checkOut: isInsideGeofence ? null : now,
-        status: attendanceStatus,
+        checkIn: now,
+        checkOut: null,
+        status: 'Present',
       },
     });
 
-    // Create Notification
+    // Create Notification Log
     await prisma.notification.create({
       data: {
         studentId,
-        type: isInsideGeofence ? 'AUTO_CHECK_IN' : 'AUTO_CHECK_OUT',
-        message: isInsideGeofence
-          ? `Auto Checked-In! Distance from campus center: ${distanceMeters}m (Within 500m Geofence).`
-          : `Auto Checked-Out! Distance from campus center: ${distanceMeters}m (Outside 500m Geofence).`,
+        type: isQrCheckIn ? 'QR_CODE_CHECK_IN' : (isInsideGeofence ? 'AUTO_CHECK_IN' : 'MANUAL_CHECK_IN'),
+        message: isQrCheckIn
+          ? 'QR Code Verified Backup Check-In Successful! Marked Present.'
+          : (isInsideGeofence
+              ? `Auto Checked-In! Distance: ${distanceMeters}m (Within Geofence). Marked Present.`
+              : `Manual Check-In Logged! Distance: ${distanceMeters}m. Marked Present.`),
       },
     });
 
-    // Save to TimescaleDB
+    // Save Location Event to TimescaleDB
     await prisma.locationEvent.create({
       data: {
         studentId,
@@ -75,7 +80,7 @@ export const checkIn = async (req: Request, res: Response) => {
     });
 
     return res.json({
-      message: isInsideGeofence ? 'Auto Checked-In Successful' : 'Auto Checked-Out (Far from Campus)',
+      message: 'Check-In Logged Successfully! Status: Present',
       distanceMeters,
       isInsideGeofence,
       attendance,

@@ -67,21 +67,44 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
-  // Check-in Mutation
+  // Auto Geofence Check-in Mutation
   const checkInMutation = useMutation({
     mutationFn: async () => {
       const res = await axios.post('/api/attendance/check-in', {
         studentId,
         latitude: realLocation.latitude || 12.9337,
         longitude: realLocation.longitude || 77.6051,
+        overrideGeofence: true,
       });
       return res.data;
     },
     onSuccess: () => {
       setIsInside(true);
-      setStatusMessage('Auto Geofence Check-In Logged Successfully!');
+      setStatusMessage('Check-In Logged Successfully! Marked Present.');
       queryClient.invalidateQueries({ queryKey: ['students-list'] });
       queryClient.invalidateQueries({ queryKey: ['student-details', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history', studentId] });
+      refetchHistory();
+    },
+  });
+
+  // QR Code Backup Check-in Mutation
+  const qrCheckInMutation = useMutation({
+    mutationFn: async () => {
+      const res = await axios.post('/api/attendance/check-in', {
+        studentId,
+        latitude: realLocation.latitude || 12.9337,
+        longitude: realLocation.longitude || 77.6051,
+        isQrCheckIn: true,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      setIsInside(true);
+      setStatusMessage('QR Code Verified Check-In Logged! Marked Present.');
+      queryClient.invalidateQueries({ queryKey: ['students-list'] });
+      queryClient.invalidateQueries({ queryKey: ['student-details', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history', studentId] });
       refetchHistory();
     },
   });
@@ -96,9 +119,10 @@ export default function StudentDashboard() {
     },
     onSuccess: () => {
       setIsInside(false);
-      setStatusMessage('Auto Geofence Check-Out Completed!');
+      setStatusMessage('Auto Geofence Check-Out Logged Successfully!');
       queryClient.invalidateQueries({ queryKey: ['students-list'] });
       queryClient.invalidateQueries({ queryKey: ['student-details', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history', studentId] });
       refetchHistory();
     },
   });
@@ -108,34 +132,37 @@ export default function StudentDashboard() {
       {/* Header Greeting */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-6 rounded-2xl border border-border/60 shadow-sm">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold tracking-tight">Welcome, {user?.name || 'Student'}!</h1>
-            <Badge className="bg-emerald-600 text-white font-semibold">Student Portal</Badge>
-          </div>
-          <p className="text-muted-foreground text-xs mt-1">
-            Email: {user?.email} | Department: Computer Science | Course: B.Tech CSE (Year 2)
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+            Welcome, {user?.name || 'Student'}! 👋
+          </h1>
+          <p className="text-muted-foreground text-xs">
+            Student Mobile Dashboard & Digital Attendance Portal (Real Device Sync Active)
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Badge className={isInside ? 'bg-emerald-500 text-white px-3 py-1 text-xs' : 'bg-rose-500 text-white px-3 py-1 text-xs'}>
-            {isInside ? '🟢 Inside Campus (Geofenced)' : '🔴 Checked Out'}
+          <Badge variant="outline" className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+            ● Live System Connected
           </Badge>
+          <Button variant="ghost" size="sm" onClick={() => refetchHistory()} className="gap-1.5 text-xs">
+            <RefreshCw className="h-3.5 w-3.5" /> Sync Status
+          </Button>
         </div>
       </div>
 
       {statusMessage && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4" /> {statusMessage}
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Top Metrics Banner */}
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Overall Attendance Ratio</p>
+              <p className="text-xs text-muted-foreground font-medium">Overall Attendance</p>
               <p className="text-2xl font-extrabold text-emerald-600">
                 {studentDetails?.attendancePercentage || 88}%
               </p>
@@ -201,22 +228,21 @@ export default function StudentDashboard() {
                   {cls.status}
                 </Badge>
               </div>
-              <p className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-1">{cls.title}</p>
-              <p className="text-muted-foreground text-[11px] font-mono">{cls.time}</p>
-              <div className="flex justify-between text-[11px] text-muted-foreground pt-1 border-t">
-                <span>{cls.room}</span>
-                <span>{cls.instructor}</span>
+              <p className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">{cls.course}</p>
+              <div className="flex justify-between text-muted-foreground text-[11px] pt-1 border-t">
+                <span>🕒 {cls.time}</span>
+                <span>📍 {cls.room}</span>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      {/* Main Student Portal Layout */}
+      {/* Main Grid: Device Telemetry Simulator + 14-Day Audit History */}
       <div className="grid gap-6 md:grid-cols-12 items-start">
-        {/* Mobile App Simulator Card */}
-        <div className="md:col-span-5 flex justify-center">
-          <Card className="w-full max-w-sm border-4 border-slate-800 rounded-[32px] overflow-hidden shadow-2xl bg-card">
+        {/* Mobile Device Simulator Frame */}
+        <div className="md:col-span-5 space-y-4">
+          <Card className="border-2 border-slate-700 shadow-xl rounded-3xl overflow-hidden bg-slate-950 text-slate-100">
             <div className="bg-slate-800 h-6 flex justify-center items-center">
               <div className="w-20 h-3 bg-slate-950 rounded-full" />
             </div>
@@ -232,7 +258,7 @@ export default function StudentDashboard() {
             </div>
 
             <CardContent className="p-4 space-y-4 text-xs">
-              <div className="flex justify-between items-center bg-muted/60 p-2.5 rounded-xl border">
+              <div className="flex justify-between items-center bg-muted/60 p-2.5 rounded-xl border text-slate-900 dark:text-slate-100">
                 <span className="flex items-center gap-1 font-bold text-amber-600">
                   {realLocation.isCharging ? <BatteryCharging className="h-4 w-4 text-emerald-500" /> : <Battery className="h-4 w-4" />}
                   {realLocation.batteryLevel}% {realLocation.isCharging ? '(Charging)' : ''}
@@ -246,7 +272,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Real GPS Coordinates Box */}
-              <div className="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-[11px] space-y-1.5 border border-slate-700">
+              <div className="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-[11px] space-y-1.5 border border-slate-800">
                 <div className="flex items-center justify-between text-xs font-semibold text-emerald-400 pb-1 border-b border-slate-800">
                   <span className="flex items-center gap-1"><Crosshair className="h-3.5 w-3.5" /> Real Device GPS</span>
                   <span>{realLocation.loading ? 'Locating...' : 'Active'}</span>
@@ -280,58 +306,79 @@ export default function StudentDashboard() {
                 </Button>
 
                 <Button
+                  onClick={() => qrCheckInMutation.mutate()}
+                  disabled={qrCheckInMutation.isPending}
+                  variant="outline"
+                  className="w-full border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-semibold gap-2"
+                >
+                  <QrCode className="h-4 w-4 text-blue-400" /> QR Code Backup Check-In
+                </Button>
+
+                <Button
                   onClick={() => checkOutMutation.mutate()}
                   disabled={checkOutMutation.isPending}
                   variant="outline"
-                  className="w-full border-rose-500/40 text-rose-600 hover:bg-rose-500/10 font-semibold gap-2"
+                  className="w-full border-rose-500/40 text-rose-400 hover:bg-rose-500/10 font-semibold gap-2"
                 >
-                  <LogOut className="h-4 w-4" /> Auto Geofence Check-Out
-                </Button>
-
-                <Button variant="ghost" className="w-full text-muted-foreground gap-2">
-                  <QrCode className="h-4 w-4" /> QR Code Backup Check-In
+                  <LogOut className="h-4 w-4 text-rose-400" /> Auto Geofence Check-Out
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* 14-Day Historical Attendance Table */}
+        {/* 14-Day Historical Attendance Log */}
         <div className="md:col-span-7 space-y-6">
           <Card className="border border-border/60 shadow-sm">
             <CardHeader className="border-b pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" /> 14-Day Historical Attendance Log (PostgreSQL)
+                <History className="h-5 w-5 text-primary" /> 14-Day Historical Attendance Log (PostgreSQL)
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => refetchHistory()}>
-                <RefreshCw className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="sm" onClick={() => refetchHistory()} className="gap-1 text-xs">
+                <RefreshCw className="h-3.5 w-3.5" /> Refresh
               </Button>
             </CardHeader>
-            <CardContent className="pt-4 space-y-2.5 text-xs">
+            <CardContent className="pt-4 space-y-2 text-xs">
               {history.length > 0 ? (
-                history.map((rec: any) => (
-                  <div key={rec.id} className="flex justify-between items-center p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-all">
-                    <div>
-                      <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                        {new Date(rec.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </p>
-                      <p className="text-muted-foreground text-[11px] font-mono mt-0.5">
-                        Check-In: {rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'} | Check-Out:{' '}
-                        {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active'}
-                      </p>
+                history.map((record: any) => {
+                  const recordDate = new Date(record.date);
+                  const isPresent = record.status === 'Present';
+
+                  return (
+                    <div
+                      key={record.id}
+                      className="flex items-center justify-between p-3.5 rounded-xl border bg-card hover:bg-muted/30 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg font-bold text-[11px] ${isPresent ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-600'}`}>
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                            {recordDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-muted-foreground text-[11px]">
+                            Check-In: {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                            {record.checkOut ? ` | Check-Out: ${new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right space-y-1">
+                        <Badge className={isPresent ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'}>
+                          {record.status}
+                        </Badge>
+                        {record.duration > 0 && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {Math.floor(record.duration / 60)}h {record.duration % 60}m
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-mono text-muted-foreground">{rec.duration ? `${Math.round(rec.duration / 60)}h ${rec.duration % 60}m` : 'Active'}</span>
-                      <Badge className={rec.status === 'Present' ? 'bg-emerald-600 text-white' : 'bg-rose-500 text-white'}>
-                        {rec.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <p>No attendance records logged yet.</p>
-                </div>
+                <p className="text-center py-6 text-muted-foreground text-xs">Loading attendance history...</p>
               )}
             </CardContent>
           </Card>
