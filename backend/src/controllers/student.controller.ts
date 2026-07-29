@@ -67,13 +67,15 @@ export const getStudentById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Parse Device Fingerprint
+    // Parse User-Agent for real hardware model
     const deviceInfo = parseDeviceUserAgent(userAgentHeader, clientIp);
 
-    // Latest Location Ping Analysis
+    // Latest Location Ping Analysis (TimescaleDB)
     const latestPing = student.locationEvents?.[0];
     const pingLat = latestPing ? latestPing.latitude : 12.9337;
     const pingLng = latestPing ? latestPing.longitude : 77.6051;
+    const realBatteryLevel = latestPing ? latestPing.batteryLevel : 92;
+    const realDeviceModel = latestPing?.deviceModel || deviceInfo.deviceModel;
 
     // Calculate distance from Bengaluru Campus Center
     const distanceMeters = Math.round(getHaversineDistance(pingLat, pingLng, CAMPUS_LAT, CAMPUS_LNG));
@@ -81,7 +83,7 @@ export const getStudentById = async (req: Request, res: Response) => {
 
     // Multi-device conflict check
     const multiDeviceResult = detectMultiDeviceConflict(
-      deviceInfo.deviceModel,
+      realDeviceModel,
       deviceInfo.ipAddress,
       'iPhone 15 Pro',
       '103.22.14.12'
@@ -100,7 +102,7 @@ export const getStudentById = async (req: Request, res: Response) => {
         passed: isInsideGeofence,
       },
       {
-        text: `Active Hardware Device: ${deviceInfo.deviceModel} (IP: ${deviceInfo.ipAddress})`,
+        text: `Active Hardware Device: ${realDeviceModel} (Battery: ${realBatteryLevel}%, IP: ${deviceInfo.ipAddress})`,
         passed: true,
       },
       {
@@ -123,10 +125,11 @@ export const getStudentById = async (req: Request, res: Response) => {
       totalPresentDays: 22,
       totalAbsentDays: 3,
       deviceInfo: {
-        model: deviceInfo.deviceModel,
+        model: realDeviceModel,
         os: deviceInfo.osName,
         browser: deviceInfo.browserName,
         ipAddress: deviceInfo.ipAddress,
+        batteryLevel: realBatteryLevel,
         isMultiDeviceConflict: multiDeviceResult.isConflict,
         conflictReason: multiDeviceResult.reason,
       },

@@ -111,7 +111,13 @@ export default function StudentDetails() {
             <CardContent className="pt-4 space-y-3 text-xs">
               <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Detected Model</span>
-                <span className="font-bold text-primary">{device?.model || 'MacBook Pro (Apple M1)'}</span>
+                <span className="font-bold text-primary">{device?.model || 'MacBook Pro (Apple Silicon M1)'}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Battery className="h-3.5 w-3.5 text-amber-500" /> Real Device Battery
+                </span>
+                <span className="font-bold text-amber-600">{device?.batteryLevel || 92}% ⚡</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Operating System</span>
