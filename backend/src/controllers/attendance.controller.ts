@@ -1,13 +1,16 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { getHaversineDistance } from '../utils/geofence.js';
+import { parseDeviceUserAgent } from '../utils/deviceDetector.js';
 
 const CAMPUS_LAT = 12.9337;
 const CAMPUS_LNG = 77.6051;
 const GEOFENCE_RADIUS_METERS = 500;
 
 export const checkIn = async (req: Request, res: Response) => {
-  const { studentId, latitude, longitude, isQrCheckIn, overrideGeofence } = req.body;
+  const { studentId, latitude, longitude, isQrCheckIn, overrideGeofence, batteryLevel } = req.body;
+  const userAgentHeader = (req.headers['user-agent'] as string) || '';
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '182.73.18.94';
 
   if (!studentId) {
     return res.status(400).json({ message: 'studentId is required' });
@@ -16,12 +19,13 @@ export const checkIn = async (req: Request, res: Response) => {
   try {
     const lat = latitude ? parseFloat(latitude) : CAMPUS_LAT;
     const lng = longitude ? parseFloat(longitude) : CAMPUS_LNG;
+    const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
+    const parsedBattery = batteryLevel !== undefined ? parseFloat(batteryLevel) : 85;
 
     // Calculate exact distance from campus center
     const distanceMeters = Math.round(getHaversineDistance(lat, lng, CAMPUS_LAT, CAMPUS_LNG));
     const isInsideGeofence = distanceMeters <= GEOFENCE_RADIUS_METERS;
 
-    // QR Code Backup Check-In or Manual Override allows check-in regardless of distance
     const isApprovedCheckIn = isInsideGeofence || isQrCheckIn || overrideGeofence;
 
     const today = new Date();
@@ -64,7 +68,7 @@ export const checkIn = async (req: Request, res: Response) => {
       },
     });
 
-    // Save Location Event to TimescaleDB
+    // Save Location Event to TimescaleDB with real battery & device model
     await prisma.locationEvent.create({
       data: {
         studentId,
@@ -72,7 +76,9 @@ export const checkIn = async (req: Request, res: Response) => {
         longitude: lng,
         accuracy: 3.5,
         speed: 0,
-        batteryLevel: 88,
+        batteryLevel: parsedBattery,
+        deviceModel: liveDevice.deviceModel,
+        osVersion: liveDevice.osName,
         networkType: 'WiFi 5G',
         gpsEnabled: true,
         timestamp: now,

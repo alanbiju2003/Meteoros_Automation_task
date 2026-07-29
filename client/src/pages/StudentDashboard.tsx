@@ -32,6 +32,7 @@ export default function StudentDashboard() {
         gpsEnabled: true,
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ['latest-locations'] });
+        queryClient.invalidateQueries({ queryKey: ['student-details', studentId] });
       }).catch(() => {});
     }
   }, [realLocation.latitude, realLocation.longitude, realLocation.batteryLevel, studentId]);
@@ -74,6 +75,7 @@ export default function StudentDashboard() {
         studentId,
         latitude: realLocation.latitude || 12.9337,
         longitude: realLocation.longitude || 77.6051,
+        batteryLevel: realLocation.batteryLevel,
         overrideGeofence: true,
       });
       return res.data;
@@ -95,6 +97,7 @@ export default function StudentDashboard() {
         studentId,
         latitude: realLocation.latitude || 12.9337,
         longitude: realLocation.longitude || 77.6051,
+        batteryLevel: realLocation.batteryLevel,
         isQrCheckIn: true,
       });
       return res.data;
