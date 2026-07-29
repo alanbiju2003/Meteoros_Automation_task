@@ -7,38 +7,83 @@ export interface DeviceFingerprint {
 }
 
 export function parseDeviceUserAgent(userAgent: string, reqIp?: string): DeviceFingerprint {
-  let deviceModel = 'MacBook Pro (Apple Silicon M1/M2)';
-  let osName = 'macOS 14 Sonoma';
-  let browserName = 'Chrome 123';
+  const ua = userAgent || '';
+  const uaLower = ua.toLowerCase();
+
+  let deviceModel = 'Generic Device';
+  let osName = 'Unknown OS';
+  let browserName = 'Browser';
   let isMobile = false;
 
-  const ua = userAgent.toLowerCase();
+  // 1. Detect Operating System & OS Version
+  if (uaLower.includes('android')) {
+    isMobile = true;
+    const match = ua.match(/Android\s+([0-9\.]+)/i);
+    const androidVer = match ? match[1] : '14';
+    osName = `Android ${androidVer}`;
 
-  if (ua.includes('iphone')) {
-    deviceModel = 'iPhone 15 Pro';
-    osName = 'iOS 17.4';
+    // Extract exact Brand & Model (Motorola, Xiaomi, Mi, Redmi, OnePlus, Samsung, Pixel, Vivo, Oppo, Realme)
+    if (uaLower.includes('moto') || uaLower.includes('motorola')) {
+      const modelMatch = ua.match(/(moto\s+[^\s;\)\/]+|motorola\s+[^\s;\)\/]+)/i);
+      deviceModel = modelMatch ? modelMatch[0] : 'Motorola Smartphone';
+    } else if (uaLower.includes('redmi') || uaLower.includes('xiaomi') || uaLower.includes('mi ')) {
+      const modelMatch = ua.match(/(redmi\s+[^\s;\)\/]+|xiaomi\s+[^\s;\)\/]+|mi\s+[^\s;\)\/]+)/i);
+      deviceModel = modelMatch ? modelMatch[0] : 'Xiaomi Redmi Smartphone';
+    } else if (uaLower.includes('oneplus')) {
+      const modelMatch = ua.match(/(oneplus\s+[^\s;\)\/]+)/i);
+      deviceModel = modelMatch ? modelMatch[0] : 'OnePlus Smartphone';
+    } else if (uaLower.includes('samsung') || uaLower.includes('sm-')) {
+      const modelMatch = ua.match(/(sm-[a-z0-9]+|samsung\s+[^\s;\)\/]+)/i);
+      deviceModel = modelMatch ? `Samsung Galaxy (${modelMatch ? modelMatch[0].toUpperCase() : 'Series'})` : 'Samsung Galaxy Smartphone';
+    } else if (uaLower.includes('pixel')) {
+      const modelMatch = ua.match(/(pixel\s+[0-9a-z\s]+)/i);
+      deviceModel = modelMatch ? `Google ${modelMatch[0]}` : 'Google Pixel Smartphone';
+    } else if (uaLower.includes('vivo')) {
+      deviceModel = 'Vivo Smartphone';
+    } else if (uaLower.includes('oppo')) {
+      deviceModel = 'OPPO Smartphone';
+    } else if (uaLower.includes('realme')) {
+      deviceModel = 'Realme Smartphone';
+    } else {
+      deviceModel = 'Android Mobile Device';
+    }
+  } else if (uaLower.includes('iphone')) {
     isMobile = true;
-  } else if (ua.includes('ipad')) {
-    deviceModel = 'iPad Air (M1)';
+    const match = ua.match(/OS\s+([0-9_]+)/i);
+    const iosVer = match ? match[1].replace(/_/g, '.') : '17.4';
+    osName = `iOS ${iosVer}`;
+    deviceModel = 'Apple iPhone';
+  } else if (uaLower.includes('ipad')) {
+    isMobile = true;
     osName = 'iPadOS';
-    isMobile = true;
-  } else if (ua.includes('android')) {
-    deviceModel = 'Samsung Galaxy S24';
-    osName = 'Android 14';
-    isMobile = true;
-  } else if (ua.includes('macintosh') || ua.includes('mac os')) {
-    deviceModel = 'MacBook Pro (Apple Silicon M1/M2)';
-    osName = 'macOS 14 Sonoma';
+    deviceModel = 'Apple iPad';
+  } else if (uaLower.includes('macintosh') || uaLower.includes('mac os')) {
     isMobile = false;
-  } else if (ua.includes('windows')) {
-    deviceModel = 'Dell XPS 15 (Windows)';
-    osName = 'Windows 11';
+    const match = ua.match(/Mac OS X\s+([0-9_]+)/i);
+    const macVer = match ? match[1].replace(/_/g, '.') : '14.4';
+    osName = `macOS ${macVer}`;
+    deviceModel = 'MacBook Pro / Mac (Apple Silicon)';
+  } else if (uaLower.includes('windows')) {
     isMobile = false;
+    osName = 'Windows 11 / 10';
+    deviceModel = 'Windows PC Laptop';
+  } else if (uaLower.includes('linux')) {
+    isMobile = false;
+    osName = 'Linux OS';
+    deviceModel = 'Linux Desktop Workstation';
   }
 
-  if (ua.includes('chrome')) browserName = 'Chrome 123';
-  else if (ua.includes('safari')) browserName = 'Safari 17';
-  else if (ua.includes('firefox')) browserName = 'Firefox 124';
+  // 2. Detect Browser Engine
+  if (uaLower.includes('edg/')) {
+    browserName = 'Microsoft Edge';
+  } else if (uaLower.includes('chrome/')) {
+    const match = ua.match(/Chrome\/([0-9]+)/i);
+    browserName = `Google Chrome ${match ? match[1] : ''}`;
+  } else if (uaLower.includes('safari/') && !uaLower.includes('chrome/')) {
+    browserName = 'Apple Safari';
+  } else if (uaLower.includes('firefox/')) {
+    browserName = 'Mozilla Firefox';
+  }
 
   const clientIp = reqIp || '182.73.18.94';
 
@@ -61,7 +106,6 @@ export function detectMultiDeviceConflict(
     return { isConflict: false };
   }
 
-  // Same account active on 2 different devices simultaneously
   if (currentDeviceModel !== prevDeviceModel && currentIp !== prevIp) {
     return {
       isConflict: true,
