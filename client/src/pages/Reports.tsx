@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { FileSpreadsheet, Download, Filter, ShieldAlert, Award, TrendingUp, Mail, Send, CheckCircle2, Moon, AlertTriangle, Eye } from 'lucide-react';
+import { FileSpreadsheet, Download, Filter, ShieldAlert, Award, TrendingUp, Mail, Send, CheckCircle2, Moon, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function Reports() {
@@ -19,6 +19,7 @@ export default function Reports() {
   // Preview Modal State
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [liveEmailUrl, setLiveEmailUrl] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
 
@@ -60,6 +61,7 @@ export default function Reports() {
       setSuccessMessage(`✅ Security Email Alert dispatched to ${data.recipientEmail} (CC: ${data.ccEmail})`);
       setPreviewTitle(`Security Incident Email Alert (TO: ${data.recipientEmail} | CC: ${data.ccEmail})`);
       setPreviewHtml(data.htmlPreview);
+      setLiveEmailUrl(data.emailPreviewUrl || '');
       setIsModalOpen(true);
     },
   });
@@ -77,6 +79,7 @@ export default function Reports() {
       setSuccessMessage(`✅ Nightly Threat Audit Report sent to ${data.recipientEmail} (CC: ${data.ccEmail})`);
       setPreviewTitle(`Nightly Threat & Audit Email Report (TO: ${data.recipientEmail} | CC: ${data.ccEmail})`);
       setPreviewHtml(data.htmlPreview);
+      setLiveEmailUrl(data.emailPreviewUrl || '');
       setIsModalOpen(true);
     },
   });
@@ -96,9 +99,21 @@ export default function Reports() {
       </div>
 
       {successMessage && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{successMessage}</span>
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          {liveEmailUrl && (
+            <a
+              href={liveEmailUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
+            >
+              View Delivered Email <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       )}
 
@@ -251,8 +266,18 @@ export default function Reports() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" /> {previewTitle}
+            <DialogTitle className="text-base font-bold flex items-center justify-between">
+              <span className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /> {previewTitle}</span>
+              {liveEmailUrl && (
+                <a
+                  href={liveEmailUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
+                >
+                  View Delivered Email <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Live HTML Email template dispatched to stakeholders with CC enabled.

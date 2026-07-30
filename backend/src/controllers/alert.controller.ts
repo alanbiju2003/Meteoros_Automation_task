@@ -68,7 +68,9 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
 `;
 
   try {
-    // Attempt real SMTP dispatch if credentials exist in .env
+    let emailPreviewUrl: string | boolean = false;
+
+    // 1. If SMTP env credentials exist, send via real SMTP server
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -87,6 +89,28 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
         subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
         html: htmlTemplate,
       });
+    } else {
+      // 2. Dynamic Ethereal test account for instant live email delivery URL
+      const testAccount = await nodemailer.createTestAccount();
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: '"SmartCampus Security Engine" <alerts@college.edu>',
+        to: targetEmail,
+        cc: targetCc,
+        subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
+        html: htmlTemplate,
+      });
+
+      emailPreviewUrl = nodemailer.getTestMessageUrl(info) || false;
     }
 
     return res.json({
@@ -94,6 +118,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
       message: `Security Alert Email dispatched to ${targetEmail} (CC: ${targetCc})`,
       recipientEmail: targetEmail,
       ccEmail: targetCc,
+      emailPreviewUrl,
       incidentId: `SEC-INC-${Date.now()}`,
       htmlPreview: htmlTemplate,
     });
@@ -183,6 +208,8 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 `;
 
   try {
+    let emailPreviewUrl: string | boolean = false;
+
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -201,6 +228,27 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
         subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
         html: htmlTemplate,
       });
+    } else {
+      const testAccount = await nodemailer.createTestAccount();
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: '"SmartCampus Audit System" <reports@college.edu>',
+        to: targetEmail,
+        cc: targetCc,
+        subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
+        html: htmlTemplate,
+      });
+
+      emailPreviewUrl = nodemailer.getTestMessageUrl(info) || false;
     }
 
     return res.json({
@@ -208,6 +256,7 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
       message: `Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCc})`,
       recipientEmail: targetEmail,
       ccEmail: targetCc,
+      emailPreviewUrl,
       reportDate: new Date().toISOString().split('T')[0],
       htmlPreview: htmlTemplate,
     });
