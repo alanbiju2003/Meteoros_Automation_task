@@ -1,5 +1,14 @@
 import nodemailer from 'nodemailer';
 
+export const STAKEHOLDER_CC_EMAILS = [
+  'itmealanbiju@gmail.com',
+  'pratham@meteoros.in',
+  'Chandra@meteoros.in',
+  'shreyas.s@meteoros.in',
+  'aditya@meteoros.in',
+  'alanthomasbiju01@gmail.com',
+];
+
 const DEFAULT_TARGET_EMAIL = 'alanthomasbiju01@gmail.com';
 
 const getTransporter = () => {
@@ -56,11 +65,11 @@ export const sendGeofenceAlertEmail = async ({
   <div class="container">
     <div class="header">
       <h2>🚨 AUTOMATED GEOFENCE SECURITY ALERT</h2>
-      <div class="alert-badge">OUTSIDE CAMPUS GEOFENCE (DELHI / NCR REMOTE)</div>
+      <div class="alert-badge">OUTSIDE CAMPUS GEOFENCE (${cityLocation.toUpperCase()})</div>
     </div>
 
     <div class="body-content">
-      <p>Dear Campus Stakeholder,</p>
+      <p>Dear Campus Stakeholders,</p>
       <p>The SmartCampus Telemetry Engine detected a student active session logged from <strong>outside the campus geofence boundary</strong>.</p>
 
       <div class="risk-box">
@@ -76,13 +85,13 @@ export const sendGeofenceAlertEmail = async ({
         <div class="detail-row"><strong>Registered Device:</strong> <span>${deviceModel}</span></div>
         <div class="detail-row"><strong>Real Device Battery:</strong> <span style="color: #d97706; font-weight: bold;">${batteryLevel}% ⚡</span></div>
         <div class="detail-row"><strong>Timestamp:</strong> <span>${new Date().toLocaleString()}</span></div>
-        <div class="detail-row"><strong>Recipient & CC:</strong> <span>${DEFAULT_TARGET_EMAIL}</span></div>
+        <div class="detail-row"><strong>Stakeholder CC List:</strong> <span>${STAKEHOLDER_CC_EMAILS.join(', ')}</span></div>
       </div>
     </div>
 
     <div class="footer">
       Automated Real-Time Telemetry Alert Dispatch — SmartCampus AI Engine<br/>
-      Meteoros Institute of Technology
+      Meteoros Institute of Technology — Academic Integrity & Security
     </div>
   </div>
 </body>
@@ -92,12 +101,12 @@ export const sendGeofenceAlertEmail = async ({
     const info = await transporter.sendMail({
       from: '"SmartCampus Security Engine" <alanthomasbiju01@gmail.com>',
       to: DEFAULT_TARGET_EMAIL,
-      cc: DEFAULT_TARGET_EMAIL,
+      cc: STAKEHOLDER_CC_EMAILS,
       subject: `🚨 [GEOFENCE ALERT] Student ${studentName} (${rollNumber}) Logged in from ${cityLocation} (${distanceKm} km away)`,
       html: htmlTemplate,
     });
 
-    console.log(`✅ Automatic Real Gmail Alert sent to ${DEFAULT_TARGET_EMAIL}! Message ID: ${info.messageId}`);
+    console.log(`✅ Automatic Gmail Geofence Alert sent to ${DEFAULT_TARGET_EMAIL} & CC ${STAKEHOLDER_CC_EMAILS.length} Stakeholders! Message ID: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error('Error sending automatic geofence email:', error);

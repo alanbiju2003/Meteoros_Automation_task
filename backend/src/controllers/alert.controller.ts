@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import nodemailer from 'nodemailer';
-
-const DEFAULT_CC_EMAIL = 'alanthomasbiju01@gmail.com';
+import { STAKEHOLDER_CC_EMAILS } from '../utils/emailService.js';
 
 const getTransporter = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER || 'alanthomasbiju01@gmail.com';
-  const pass = (process.env.SMTP_PASS || 'yihe rwsf lpbz msmd').replace(/\s+/g, '');
+  const pass = (process.env.SMTP_PASS || 'yiherwsflpbzmsmd').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
     host,
@@ -25,7 +24,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
   const { studentName, rollNumber, riskType, details, recipientEmail, ccEmail } = req.body;
 
   const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
-  const targetCc = ccEmail || DEFAULT_CC_EMAIL;
+  const targetCcList = ccEmail ? [ccEmail, ...STAKEHOLDER_CC_EMAILS] : STAKEHOLDER_CC_EMAILS;
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -51,7 +50,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
     </div>
 
     <div class="body-content">
-      <p>Dear Campus Stakeholder / Security Officer,</p>
+      <p>Dear Campus Stakeholder / Security Officers,</p>
       <p>The SmartCampus Automated AI Telemetry Engine has flagged a potential attendance spoofing and security violation on campus.</p>
 
       <div class="risk-box">
@@ -63,7 +62,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
         <div class="detail-row"><strong>Student Name:</strong> <span>${studentName || 'Aarav Sharma'}</span></div>
         <div class="detail-row"><strong>Roll Number:</strong> <span>${rollNumber || 'CSE2023001'}</span></div>
         <div class="detail-row"><strong>Department:</strong> <span>Computer Science & Engineering</span></div>
-        <div class="detail-row"><strong>CC Recipient:</strong> <span>${targetCc}</span></div>
+        <div class="detail-row"><strong>Stakeholder CC List:</strong> <span>${targetCcList.join(', ')}</span></div>
         <div class="detail-row"><strong>Timestamp:</strong> <span>${new Date().toLocaleString()}</span></div>
         <div class="detail-row"><strong>Detection Status:</strong> <span style="color: #ef4444; font-weight: bold;">FLAGGED FOR REGISTRAR REVIEW</span></div>
       </div>
@@ -90,18 +89,18 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
     const info = await transporter.sendMail({
       from: '"SmartCampus Security Engine" <alanthomasbiju01@gmail.com>',
       to: targetEmail,
-      cc: targetCc,
+      cc: targetCcList,
       subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
       html: htmlTemplate,
     });
 
-    console.log('Real Email Dispatched Successfully via Gmail SMTP:', info.messageId);
+    console.log('Real Email Dispatched Successfully via Gmail SMTP with CC:', info.messageId);
 
     return res.json({
       status: 'SUCCESS',
-      message: `REAL Gmail Alert Email dispatched to ${targetEmail} (CC: ${targetCc})! Message ID: ${info.messageId}`,
+      message: `REAL Gmail Alert Email dispatched to ${targetEmail} (CC: ${targetCcList.join(', ')})! Message ID: ${info.messageId}`,
       recipientEmail: targetEmail,
-      ccEmail: targetCc,
+      ccEmail: targetCcList.join(', '),
       messageId: info.messageId,
       incidentId: `SEC-INC-${Date.now()}`,
       htmlPreview: htmlTemplate,
@@ -116,7 +115,7 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
   const { recipientEmail, ccEmail } = req.body;
 
   const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
-  const targetCc = ccEmail || DEFAULT_CC_EMAIL;
+  const targetCcList = ccEmail ? [ccEmail, ...STAKEHOLDER_CC_EMAILS] : STAKEHOLDER_CC_EMAILS;
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -178,7 +177,7 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
         </tbody>
       </table>
 
-      <p style="margin-top: 16px;">CC Stakeholder Copy Delivered to: <strong>${targetCc}</strong></p>
+      <p style="margin-top: 16px;">CC Stakeholder Copy Delivered to: <strong>${targetCcList.join(', ')}</strong></p>
       <p>All flagged incidents have been recorded in the TimescaleDB hypertable for administrative review.</p>
     </div>
 
@@ -197,18 +196,18 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
     const info = await transporter.sendMail({
       from: '"SmartCampus Audit System" <alanthomasbiju01@gmail.com>',
       to: targetEmail,
-      cc: targetCc,
+      cc: targetCcList,
       subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
       html: htmlTemplate,
     });
 
-    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP:', info.messageId);
+    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP with CC:', info.messageId);
 
     return res.json({
       status: 'SUCCESS',
-      message: `REAL Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCc})! Message ID: ${info.messageId}`,
+      message: `REAL Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCcList.join(', ')})! Message ID: ${info.messageId}`,
       recipientEmail: targetEmail,
-      ccEmail: targetCc,
+      ccEmail: targetCcList.join(', '),
       messageId: info.messageId,
       reportDate: new Date().toISOString().split('T')[0],
       htmlPreview: htmlTemplate,
