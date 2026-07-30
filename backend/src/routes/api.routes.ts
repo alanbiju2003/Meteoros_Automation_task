@@ -10,6 +10,7 @@ import { getSettings, updateSettings } from '../controllers/settings.controller.
 import { triggerScheduledCheckpoint } from '../controllers/scheduled.controller.js';
 import { getClassSchedule } from '../controllers/schedule.controller.js';
 import { getHealthCheck, runLoadSimulation } from '../controllers/health.controller.js';
+import { sendSecurityAlertEmail, sendNightlyAuditReport } from '../controllers/alert.controller.js';
 import {
   evaluateTelemetry,
   getHeatmapAndIncidents,
@@ -28,6 +29,10 @@ const router = Router();
 // Health Check & Load Simulation Benchmark
 router.get('/health', getHealthCheck);
 router.post('/test/load-sim', runLoadSimulation);
+
+// Security & Threat Email Alerts
+router.post('/alerts/send-security-email', sendSecurityAlertEmail);
+router.post('/alerts/nightly-audit-report', sendNightlyAuditReport);
 
 // Auth routes
 router.post('/auth/login', login);
