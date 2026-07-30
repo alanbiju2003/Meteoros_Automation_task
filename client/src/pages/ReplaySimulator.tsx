@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge, User } from 'lucide-react';
+import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge, User, Search, Check } from 'lucide-react';
 
 const createCustomMarker = (color: string, label: string) => {
   return L.divIcon({
@@ -29,6 +29,7 @@ const createCustomMarker = (color: string, label: string) => {
 
 export default function ReplaySimulator() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState<string>('');
   const [replayTime, setReplayTime] = useState<number>(50);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
@@ -43,7 +44,7 @@ export default function ReplaySimulator() {
   const campusCenter: [number, number] = [12.9337, 77.6051];
   const geofenceRadius = isRainMode ? 560 : 500;
 
-  // Query 50 Active Students from PostgreSQL
+  // Query 100 Students from PostgreSQL
   const { data: students = [] } = useQuery({
     queryKey: ['students-list'],
     queryFn: async () => {
@@ -60,6 +61,13 @@ export default function ReplaySimulator() {
   }, [students, selectedStudentId]);
 
   const selectedStudent = students.find((s: any) => s.id === selectedStudentId) || students[0];
+
+  // Filter students by search term (name, roll number, department)
+  const filteredStudents = students.filter((s: any) =>
+    s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    s.rollNumber.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    s.department.toLowerCase().includes(studentSearchTerm.toLowerCase())
+  );
 
   // Evaluate Telemetry & Fraud Detection Mutation
   const evaluateMutation = useMutation({
@@ -111,7 +119,7 @@ export default function ReplaySimulator() {
             <Zap className="h-7 w-7 text-primary" /> Dynamic Student Time-Travel Replay & Simulator
           </h1>
           <p className="text-muted-foreground text-sm">
-            Select any student from PostgreSQL to inspect real telemetry history, GPS Trust Scores, and Adaptive Weather Geofencing.
+            Select any student from PostgreSQL to inspect real telemetry history, GPS Trust Scores, and Adaptive Weather Geofence.
           </p>
         </div>
 
@@ -127,32 +135,51 @@ export default function ReplaySimulator() {
         </div>
       </div>
 
-      {/* Student Selector Card */}
+      {/* Student Search & Selection Card */}
       <Card className="border border-border/60 shadow-sm p-4 bg-card">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
+        <div className="grid gap-4 md:grid-cols-12 items-center">
+          {/* Left Summary Header */}
+          <div className="md:col-span-5 flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Student for Replay & Simulation</Label>
+              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Student for Simulation</Label>
               <p className="text-[11px] text-muted-foreground">
-                Showing live PostgreSQL telemetry for: <strong>{selectedStudent?.name || 'Student 1'} ({selectedStudent?.rollNumber})</strong>
+                Loaded: <strong className="text-primary">{selectedStudent?.name || 'Student 1'} ({selectedStudent?.rollNumber})</strong> | {selectedStudent?.department}
               </p>
             </div>
           </div>
 
-          <select
-            value={selectedStudentId}
-            onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-slate-100 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
-          >
-            {students.map((s: any) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.rollNumber}) - {s.status}
-              </option>
-            ))}
-          </select>
+          {/* Search Box */}
+          <div className="md:col-span-3 relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search student name or roll..."
+              value={studentSearchTerm}
+              onChange={(e) => setStudentSearchTerm(e.target.value)}
+              className="pl-9 text-xs"
+            />
+          </div>
+
+          {/* Student Dropdown Selector */}
+          <div className="md:col-span-4">
+            <select
+              value={selectedStudentId}
+              onChange={(e) => setSelectedStudentId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+            >
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.rollNumber}) - {s.department} [{s.status}]
+                  </option>
+                ))
+              ) : (
+                <option value="">No students matching "{studentSearchTerm}"</option>
+              )}
+            </select>
+          </div>
         </div>
       </Card>
 
@@ -199,152 +226,121 @@ export default function ReplaySimulator() {
                   icon={createCustomMarker(evaluationResult?.isSpoofed ? '#ef4444' : '#10b981', selectedStudent?.name || 'Selected Student')}
                 >
                   <Popup>
-                    <div className="text-xs font-semibold">
-                      <p className="font-bold">{selectedStudent?.name}</p>
-                      <p>Roll: {selectedStudent?.rollNumber}</p>
-                      <p>Lat: {testLat.toFixed(5)}</p>
-                      <p>Lng: {testLng.toFixed(5)}</p>
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold">{selectedStudent?.name} ({selectedStudent?.rollNumber})</p>
+                      <p className="text-[10px] text-muted-foreground">{selectedStudent?.department}</p>
+                      <p>Lat: {testLat.toFixed(6)}, Lng: {testLng.toFixed(6)}</p>
                     </div>
                   </Popup>
                 </Marker>
               </MapContainer>
             </div>
-          </Card>
 
-          {/* Time Slider */}
-          <Card className="border border-border/60 p-4 space-y-2">
-            <div className="flex justify-between items-center text-xs font-semibold">
-              <span className="flex items-center gap-1"><Play className="h-3.5 w-3.5 text-primary" /> Time-Travel Timeline (09:00 AM - 05:00 PM)</span>
-              <span className="font-mono text-emerald-600 font-bold">{formatReplayHour(replayTime)}</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={replayTime}
-              onChange={(e) => setReplayTime(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-              <span>09:00 AM</span>
-              <span>11:00 AM</span>
-              <span>01:00 PM</span>
-              <span>03:00 PM</span>
-              <span>05:00 PM</span>
+            {/* Replay Slider Control */}
+            <div className="p-4 bg-card border-t flex items-center gap-4">
+              <span className="text-xs font-semibold text-muted-foreground shrink-0">09:00 AM</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={replayTime}
+                onChange={(e) => setReplayTime(parseInt(e.target.value))}
+                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+              <span className="text-xs font-semibold text-muted-foreground shrink-0">05:00 PM</span>
             </div>
           </Card>
         </div>
 
-        {/* Telemetry Evaluation & Spoofing Inspector */}
-        <div className="md:col-span-5 space-y-6">
+        {/* Telemetry Simulator Form & Audit Analysis */}
+        <div className="md:col-span-5 space-y-4">
           <Card className="border border-border/60 shadow-sm">
             <CardHeader className="border-b pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Crosshair className="h-5 w-5 text-primary" /> Telemetry & Spoofing Inspector
+                <Gauge className="h-5 w-5 text-primary" /> Telemetry Parameter Injector
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Latitude (°N)</Label>
-                  <Input type="number" step="0.001" value={testLat} onChange={(e) => setTestLat(parseFloat(e.target.value))} />
+                  <Label className="text-[11px] font-semibold">Test Latitude</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    value={testLat}
+                    onChange={(e) => setTestLat(parseFloat(e.target.value))}
+                    className="text-xs font-mono"
+                  />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Longitude (°E)</Label>
-                  <Input type="number" step="0.001" value={testLng} onChange={(e) => setTestLng(parseFloat(e.target.value))} />
+                  <Label className="text-[11px] font-semibold">Test Longitude</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    value={testLng}
+                    onChange={(e) => setTestLng(parseFloat(e.target.value))}
+                    className="text-xs font-mono"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">GPS Accuracy (Meters)</Label>
-                  <Input type="number" value={testAccuracy} onChange={(e) => setTestAccuracy(Number(e.target.value))} />
+                  <Label className="text-[11px] font-semibold">Accuracy Radius (m)</Label>
+                  <Input
+                    type="number"
+                    value={testAccuracy}
+                    onChange={(e) => setTestAccuracy(parseFloat(e.target.value))}
+                    className="text-xs font-mono"
+                  />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Speed (m/s)</Label>
-                  <Input type="number" value={testSpeed} onChange={(e) => setTestSpeed(Number(e.target.value))} />
+                  <Label className="text-[11px] font-semibold">Velocity / Speed (km/h)</Label>
+                  <Input
+                    type="number"
+                    value={testSpeed}
+                    onChange={(e) => setTestSpeed(parseFloat(e.target.value))}
+                    className="text-xs font-mono"
+                  />
                 </div>
               </div>
 
-              {/* Quick Fraud Simulator Buttons */}
-              <div className="space-y-2 pt-1 border-t">
-                <p className="text-[11px] font-semibold text-muted-foreground">Quick Test Scenarios for {selectedStudent?.name}:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setTestLat(12.9337);
-                      setTestLng(77.6051);
-                      setTestAccuracy(8);
-                      setTestSpeed(0);
-                    }}
-                    className="text-xs border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
-                  >
-                    ✅ Legitimate Geofence
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setTestLat(13.1986);
-                      setTestLng(77.7066);
-                      setTestAccuracy(350);
-                      setTestSpeed(100);
-                    }}
-                    className="text-xs border-rose-500/30 text-rose-600 hover:bg-rose-500/10"
-                  >
-                    🔴 Teleportation Fraud
-                  </Button>
-                </div>
+              <div className="pt-2">
+                <Button
+                  onClick={() => evaluateMutation.mutate()}
+                  disabled={evaluateMutation.isPending}
+                  className="w-full font-semibold gap-2 bg-primary"
+                >
+                  <RefreshCw className="h-4 w-4" /> Evaluate Telemetry & Run Fraud Audit
+                </Button>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button
-                onClick={() => evaluateMutation.mutate()}
-                disabled={evaluateMutation.isPending}
-                className="w-full font-semibold gap-2"
-              >
-                <Gauge className="h-4 w-4" /> Evaluate GPS Trust for {selectedStudent?.name}
-              </Button>
-            </CardFooter>
           </Card>
 
-          {/* Evaluation Result Output */}
+          {/* Audit Results Card */}
           {evaluationResult && (
-            <Card className="border border-border/60 shadow-md bg-card animate-in fade-in">
+            <Card className={`border shadow-sm ${evaluationResult.isSpoofed ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
               <CardHeader className="border-b pb-3">
-                <CardTitle className="text-base font-semibold flex items-center justify-between">
-                  <span>CTO Intelligence Output</span>
-                  <Badge className={evaluationResult.isSpoofed ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}>
-                    {evaluationResult.isSpoofed ? 'FRAUD DETECTED' : 'VERIFIED LEGITIMATE'}
-                  </Badge>
+                <CardTitle className={`text-base font-semibold flex items-center gap-2 ${evaluationResult.isSpoofed ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  <ShieldAlert className="h-5 w-5" /> Evaluation Output Analysis
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-4 space-y-3 text-xs">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-muted-foreground font-medium">Evaluated Student</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedStudent?.name}</span>
+              <CardContent className="pt-4 space-y-2 text-xs font-medium">
+                <div className="flex justify-between border-b pb-1.5">
+                  <span>GPS Trust Score:</span>
+                  <span className="font-bold font-mono">{evaluationResult.trustScore}%</span>
                 </div>
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-muted-foreground font-medium">GPS Trust Score</span>
-                  <span className="font-bold text-sm text-emerald-600">{evaluationResult.gpsTrustScore}%</span>
+                <div className="flex justify-between border-b pb-1.5">
+                  <span>Distance from Campus Center:</span>
+                  <span className="font-mono">{evaluationResult.distanceMeters}m</span>
                 </div>
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-muted-foreground font-medium">Attendance Confidence</span>
-                  <span className="font-bold text-sm text-blue-600">{evaluationResult.attendanceConfidence}%</span>
+                <div className="flex justify-between border-b pb-1.5">
+                  <span>Spoofing / Teleport Anomaly:</span>
+                  <Badge className={evaluationResult.isSpoofed ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}>
+                    {evaluationResult.isSpoofed ? 'HIGH RISK FLAG' : 'PASSED (NORMAL)'}
+                  </Badge>
                 </div>
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-muted-foreground font-medium">Calculated Speed</span>
-                  <span className="font-semibold">{evaluationResult.calculatedSpeedKmH} km/h</span>
-                </div>
-
-                {evaluationResult.spoofReason && (
-                  <div className="bg-rose-500/10 border border-rose-500/30 text-rose-600 p-2.5 rounded-lg text-[11px] font-semibold flex items-start gap-2">
-                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{evaluationResult.spoofReason}</span>
-                  </div>
-                )}
+                <p className="text-[11px] text-muted-foreground pt-1">{evaluationResult.reason}</p>
               </CardContent>
             </Card>
           )}
