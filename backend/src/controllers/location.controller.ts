@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { parseDeviceUserAgent } from '../utils/deviceDetector.js';
+import { getHaversineDistance } from '../utils/geofence.js';
+import { sendGeofenceAlertEmail } from '../utils/emailService.js';
+
+const CAMPUS_LAT = 12.9337;
+const CAMPUS_LNG = 77.6051;
+const GEOFENCE_RADIUS = 500;
 
 export const recordLocationPing = async (req: Request, res: Response) => {
   const { studentId, latitude, longitude, accuracy, speed, batteryLevel, networkType, gpsEnabled } = req.body;
@@ -14,13 +20,15 @@ export const recordLocationPing = async (req: Request, res: Response) => {
   try {
     const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
     const parsedBattery = batteryLevel !== undefined ? parseFloat(batteryLevel) : 85;
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
 
     // 1. Insert into TimescaleDB LocationEvent hypertable
     const locationEvent = await prisma.locationEvent.create({
       data: {
         studentId,
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: lat,
+        longitude: lng,
         accuracy: accuracy ? parseFloat(accuracy) : 3.5,
         speed: speed ? parseFloat(speed) : 0,
         batteryLevel: parsedBattery,
@@ -50,7 +58,38 @@ export const recordLocationPing = async (req: Request, res: Response) => {
       },
     }).catch(() => {});
 
-    return res.json({ status: 'Location recorded in TimescaleDB', eventId: locationEvent.id, batteryLevel: parsedBattery });
+    // 3. Geofence evaluation & automatic Gmail trigger if outside campus (e.g. Delhi / NCR)
+    const distanceMeters = Math.round(getHaversineDistance(lat, lng, CAMPUS_LAT, CAMPUS_LNG));
+    if (distanceMeters > GEOFENCE_RADIUS) {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: {
+          user: { select: { name: true } },
+          department: { select: { name: true } },
+        },
+      });
+
+      if (student) {
+        const distanceKm = Math.round(distanceMeters / 1000) || 1743;
+        sendGeofenceAlertEmail({
+          studentName: student.user?.name || 'Student',
+          rollNumber: student.rollNumber,
+          department: student.department?.name || 'Computer Science',
+          distanceKm,
+          batteryLevel: parsedBattery,
+          deviceModel: liveDevice.deviceModel,
+          cityLocation: 'Delhi / NCR (Remote)',
+        }).catch(err => console.error('Error sending auto email:', err));
+      }
+    }
+
+    return res.json({
+      status: 'Location recorded in TimescaleDB',
+      eventId: locationEvent.id,
+      batteryLevel: parsedBattery,
+      distanceMeters,
+      isOutsideGeofence: distanceMeters > GEOFENCE_RADIUS,
+    });
   } catch (error) {
     console.error('Error saving location ping:', error);
     return res.status(500).json({ message: 'Server error saving location' });

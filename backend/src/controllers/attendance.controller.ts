@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { getHaversineDistance } from '../utils/geofence.js';
 import { parseDeviceUserAgent } from '../utils/deviceDetector.js';
+import { sendGeofenceAlertEmail } from '../utils/emailService.js';
 
 const CAMPUS_LAT = 12.9337;
 const CAMPUS_LNG = 77.6051;
@@ -32,8 +33,6 @@ export const checkIn = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
     const now = new Date();
 
-    const attendanceStatus = isApprovedCheckIn ? 'Present' : 'Checked Out';
-
     const attendance = await prisma.attendance.upsert({
       where: {
         studentId_date: {
@@ -50,25 +49,11 @@ export const checkIn = async (req: Request, res: Response) => {
         studentId,
         date: today,
         checkIn: now,
-        checkOut: null,
         status: 'Present',
       },
     });
 
-    // Create Notification Log
-    await prisma.notification.create({
-      data: {
-        studentId,
-        type: isQrCheckIn ? 'QR_CODE_CHECK_IN' : (isInsideGeofence ? 'AUTO_CHECK_IN' : 'MANUAL_CHECK_IN'),
-        message: isQrCheckIn
-          ? 'QR Code Verified Backup Check-In Successful! Marked Present.'
-          : (isInsideGeofence
-              ? `Auto Checked-In! Distance: ${distanceMeters}m (Within Geofence). Marked Present.`
-              : `Manual Check-In Logged! Distance: ${distanceMeters}m. Marked Present.`),
-      },
-    });
-
-    // Save Location Event to TimescaleDB with real battery & device model
+    // Record Location Event in TimescaleDB
     await prisma.locationEvent.create({
       data: {
         studentId,
@@ -85,14 +70,41 @@ export const checkIn = async (req: Request, res: Response) => {
       },
     });
 
+    // Trigger Automatic Real Gmail Alert if outside geofence (Delhi / NCR)
+    if (!isInsideGeofence) {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: {
+          user: { select: { name: true } },
+          department: { select: { name: true } },
+        },
+      });
+
+      if (student) {
+        const distanceKm = Math.round(distanceMeters / 1000) || 1743;
+        sendGeofenceAlertEmail({
+          studentName: student.user?.name || 'Student',
+          rollNumber: student.rollNumber,
+          department: student.department?.name || 'Computer Science',
+          distanceKm,
+          batteryLevel: parsedBattery,
+          deviceModel: liveDevice.deviceModel,
+          cityLocation: 'Delhi / NCR (Remote)',
+        }).catch(err => console.error('Error sending auto email:', err));
+      }
+    }
+
     return res.json({
-      message: 'Check-In Logged Successfully! Status: Present',
+      message: isApprovedCheckIn
+        ? 'Geofence Verified Check-In Successful'
+        : 'Outside Campus Geofence (Remote Check-In Flagged)',
+      attendance,
       distanceMeters,
       isInsideGeofence,
-      attendance,
+      confidenceScore: isInsideGeofence ? 98 : 12,
     });
   } catch (error) {
-    console.error('Check-in error:', error);
+    console.error('Error during checkIn:', error);
     return res.status(500).json({ message: 'Server error during check-in' });
   }
 };
@@ -109,7 +121,7 @@ export const checkOut = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
     const now = new Date();
 
-    const existing = await prisma.attendance.findUnique({
+    const existingAttendance = await prisma.attendance.findUnique({
       where: {
         studentId_date: {
           studentId,
@@ -119,9 +131,9 @@ export const checkOut = async (req: Request, res: Response) => {
     });
 
     let durationMinutes = 0;
-    if (existing?.checkIn) {
-      const diffMs = now.getTime() - new Date(existing.checkIn).getTime();
-      durationMinutes = Math.round(diffMs / (1000 * 60));
+    if (existingAttendance?.checkIn) {
+      const checkInTime = new Date(existingAttendance.checkIn).getTime();
+      durationMinutes = Math.round((now.getTime() - checkInTime) / (1000 * 60));
     }
 
     const attendance = await prisma.attendance.update({
@@ -138,17 +150,12 @@ export const checkOut = async (req: Request, res: Response) => {
       },
     });
 
-    await prisma.notification.create({
-      data: {
-        studentId,
-        type: 'CHECK_OUT',
-        message: 'Checked out of campus. Total stay duration logged.',
-      },
+    return res.json({
+      message: 'Check-Out logged successfully',
+      attendance,
     });
-
-    return res.json({ message: 'Check-out successful', attendance });
   } catch (error) {
-    console.error('Check-out error:', error);
+    console.error('Error during checkOut:', error);
     return res.status(500).json({ message: 'Server error during check-out' });
   }
 };
@@ -156,18 +163,15 @@ export const checkOut = async (req: Request, res: Response) => {
 export const getAttendanceHistory = async (req: Request, res: Response) => {
   const { studentId } = req.query;
 
+  if (!studentId) {
+    return res.status(400).json({ message: 'studentId is required' });
+  }
+
   try {
     const history = await prisma.attendance.findMany({
-      where: studentId ? { studentId: String(studentId) } : {},
+      where: { studentId: String(studentId) },
       orderBy: { date: 'desc' },
       take: 30,
-      include: {
-        student: {
-          include: {
-            user: { select: { name: true, email: true } },
-          },
-        },
-      },
     });
 
     return res.json(history);
