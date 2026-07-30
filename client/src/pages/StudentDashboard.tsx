@@ -6,7 +6,8 @@ import { useRealLocation } from '@/hooks/useRealLocation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Navigation, QrCode, Battery, BatteryCharging, Wifi, CheckCircle2, LogOut, RefreshCw, Smartphone, History, Crosshair, UserCheck, Clock, Award, BookOpen, Calendar } from 'lucide-react';
+import { MapPin, Navigation, QrCode, Battery, BatteryCharging, Wifi, CheckCircle2, LogOut, RefreshCw, Smartphone, History, Crosshair, UserCheck, Clock, Award, BookOpen, Calendar, ShieldCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -15,8 +16,22 @@ export default function StudentDashboard() {
 
   const [isInside, setIsInside] = useState<boolean>(true);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
+  const [qrCountdown, setQrCountdown] = useState<number>(30);
 
   const studentId = user?.studentId || '';
+
+  // TOTP QR Countdown Timer
+  useEffect(() => {
+    let interval: any;
+    if (isQrModalOpen) {
+      setQrCountdown(30);
+      interval = setInterval(() => {
+        setQrCountdown((prev) => (prev > 1 ? prev - 1 : 30));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isQrModalOpen]);
 
   // Auto push real GPS location and REAL HTML5 device battery to TimescaleDB
   useEffect(() => {
@@ -104,6 +119,7 @@ export default function StudentDashboard() {
     },
     onSuccess: () => {
       setIsInside(true);
+      setIsQrModalOpen(false);
       setStatusMessage('QR Code Verified Check-In Logged! Marked Present.');
       queryClient.invalidateQueries({ queryKey: ['students-list'] });
       queryClient.invalidateQueries({ queryKey: ['student-details', studentId] });
@@ -308,14 +324,55 @@ export default function StudentDashboard() {
                   <MapPin className="h-4 w-4" /> Auto Geofence Check-In
                 </Button>
 
-                <Button
-                  onClick={() => qrCheckInMutation.mutate()}
-                  disabled={qrCheckInMutation.isPending}
-                  variant="outline"
-                  className="w-full border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-semibold gap-2"
-                >
-                  <QrCode className="h-4 w-4 text-blue-400" /> QR Code Backup Check-In
-                </Button>
+                {/* QR Code Modal Trigger */}
+                <Dialog open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-semibold gap-2"
+                    >
+                      <QrCode className="h-4 w-4 text-blue-400" /> QR Code Backup Check-In
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-xs text-center">
+                    <DialogHeader>
+                      <DialogTitle className="text-lg font-bold flex items-center justify-center gap-2">
+                        <QrCode className="h-5 w-5 text-primary" /> Time-Expiring QR Code
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        Scan at classroom kiosk to verify backup attendance.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {/* QR Code Container */}
+                    <div className="py-4 space-y-3 flex flex-col items-center justify-center">
+                      <div className="p-3 bg-white rounded-2xl shadow-md border-2 border-slate-800">
+                        <svg className="w-36 h-36" viewBox="0 0 100 100" fill="black">
+                          <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z M40,10 h10 v10 h-10 z M10,40 h10 v10 h-10 z M40,40 h20 v20 h-20 z M70,40 h10 v10 h-10 z M40,70 h10 v20 h-10 z M70,70 h20 v10 h-20 z M80,80 h10 v10 h-10 z" />
+                        </svg>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-mono text-emerald-600 font-bold">
+                          Expiring in: {qrCountdown}s ⏱️
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          TOTP Hash: 0x{Math.random().toString(16).substring(2, 10).toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        onClick={() => qrCheckInMutation.mutate()}
+                        disabled={qrCheckInMutation.isPending}
+                        className="w-full font-semibold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <ShieldCheck className="h-4 w-4" /> Simulate Kiosk Scanner Check-In
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 <Button
                   onClick={() => checkOutMutation.mutate()}
