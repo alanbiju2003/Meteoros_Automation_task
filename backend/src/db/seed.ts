@@ -1,8 +1,21 @@
 import { prisma } from './prisma.js';
 import bcrypt from 'bcrypt';
 
+const FIRST_NAMES = [
+  'Aarav', 'Ananya', 'Rohan', 'Priya', 'Aditya', 'Sneha', 'Vikram', 'Neha', 'Karan', 'Pooja',
+  'Rahul', 'Divya', 'Siddharth', 'Kavya', 'Varun', 'Riya', 'Akash', 'Isha', 'Yash', 'Meera',
+  'Amit', 'Shruti', 'Nikhil', 'Tanvi', 'Manish', 'Shreya', 'Deepak', 'Swati', 'Gaurav', 'Anushka',
+  'Tarun', 'Simran', 'Abhishek', 'Bhavna', 'Harsh', 'Radhika', 'Kartik', 'Kriti', 'Mayank', 'Richa',
+  'Pranav', 'Nidhi', 'Sachin', 'Sonam', 'Vishal', 'Payal', 'Alok', 'Ritu', 'Kunal', 'Jyoti'
+];
+
+const LAST_NAMES = [
+  'Sharma', 'Verma', 'Gupta', 'Patel', 'Singh', 'Kumar', 'Joshi', 'Reddy', 'Nair', 'Iyer',
+  'Mehta', 'Shah', 'Rao', 'Das', 'Roy', 'Chowdhury', 'Malhotra', 'Kapoor', 'Bhat', 'Agarwal'
+];
+
 async function main() {
-  console.log('Seeding database with 14 days of multi-day class schedules & attendance history...');
+  console.log('🚀 Seeding 100+ Students across 6 Departments & 14 Days of Attendance History...');
 
   // Create Roles
   const roles = await Promise.all([
@@ -14,11 +27,9 @@ async function main() {
   const superAdminRole = roles[0];
   const studentRole = roles[2];
 
-  // Clean old student records first
+  // Clean old student records
   await prisma.user.deleteMany({
-    where: {
-      roleId: studentRole.id
-    }
+    where: { roleId: studentRole.id }
   });
 
   // Create Super Admin User
@@ -31,51 +42,70 @@ async function main() {
       password: adminHashedPassword,
       name: 'System Admin',
       roleId: superAdminRole.id,
-      adminProfile: {
-        create: {}
-      }
+      adminProfile: { create: {} }
     }
   });
 
-  // Create Departments & Courses
-  const cseDept = await prisma.department.upsert({
-    where: { name: 'Computer Science' },
-    update: {},
-    create: {
-      name: 'Computer Science',
-      courses: {
-        create: [
-          { name: 'B.Tech CSE' },
-          { name: 'M.Tech CSE' }
-        ]
-      }
+  // Create 6 Departments & Courses
+  const deptData = [
+    { name: 'Computer Science', courses: ['B.Tech CSE', 'M.Tech CSE'] },
+    { name: 'Artificial Intelligence', courses: ['B.Tech AI & DS', 'B.Tech Machine Learning'] },
+    { name: 'Electronics & Communication', courses: ['B.Tech ECE', 'B.Tech VLSI Design'] },
+    { name: 'Information Technology', courses: ['B.Tech IT'] },
+    { name: 'Mechanical Engineering', courses: ['B.Tech ME'] },
+    { name: 'Civil Engineering', courses: ['B.Tech CE'] },
+  ];
+
+  const createdDepts: any[] = [];
+  for (const d of deptData) {
+    const dept = await prisma.department.upsert({
+      where: { name: d.name },
+      update: {},
+      create: { name: d.name }
+    });
+
+    const courses: any[] = [];
+    for (const cName of d.courses) {
+      const course = await prisma.course.findFirst({ where: { name: cName } }) ||
+        await prisma.course.create({ data: { name: cName, departmentId: dept.id } });
+      courses.push(course);
     }
-  });
 
-  const btechCse = await prisma.course.findFirst({ where: { name: 'B.Tech CSE' } });
+    createdDepts.push({ dept, courses });
+  }
 
-  // Exact Campus Coordinates: Lat 12.9337, Lng 77.6051
   const baseLat = 12.9337;
   const baseLng = 77.6051;
 
-  // Seed 50 Students with credentials (student1@gmail.com / student001 ... student50@gmail.com / student050)
-  for (let i = 1; i <= 50; i++) {
+  // Seed 100 Students
+  for (let i = 1; i <= 100; i++) {
+    const firstName = FIRST_NAMES[(i - 1) % FIRST_NAMES.length];
+    const lastName = LAST_NAMES[Math.floor((i - 1) / 5) % LAST_NAMES.length];
+    const name = `${firstName} ${lastName}`;
     const email = `student${i}@gmail.com`;
     const rawPass = `student${i.toString().padStart(3, '0')}`;
     const studentHashedPassword = await bcrypt.hash(rawPass, 10);
+
+    const deptGroup = createdDepts[(i - 1) % createdDepts.length];
+    const department = deptGroup.dept;
+    const course = deptGroup.courses[(i - 1) % deptGroup.courses.length];
+
+    const year = ((i - 1) % 4) + 1;
+    const prefix = department.name.substring(0, 3).toUpperCase();
+    const rollNumber = `${prefix}202${4 - year}${i.toString().padStart(3, '0')}`;
 
     const user = await prisma.user.create({
       data: {
         email,
         password: studentHashedPassword,
-        name: `Student ${i}`,
+        name,
         roleId: studentRole.id,
         studentProfile: {
           create: {
-            rollNumber: `CSE2023${i.toString().padStart(3, '0')}`,
-            departmentId: cseDept.id,
-            courseId: btechCse!.id,
-            year: 2,
+            rollNumber,
+            departmentId: department.id,
+            courseId: course.id,
+            year,
           }
         }
       },
@@ -86,13 +116,13 @@ async function main() {
 
     const studentId = user.studentProfile!.id;
 
-    // Distribute Mayur Vihar / Campus coordinates
-    const isInsideCampus = i % 4 !== 0;
-    const latOffset = ((i % 8) - 4) * 0.0008;
-    const lngOffset = (Math.floor(i / 8) - 3) * 0.0008;
+    // Distribute Coordinates
+    const isInsideCampus = i % 5 !== 0;
+    const latOffset = ((i % 10) - 5) * 0.0008;
+    const lngOffset = (Math.floor(i / 10) - 5) * 0.0008;
 
-    const lat = isInsideCampus ? baseLat + latOffset : baseLat - 0.0120 + latOffset;
-    const lng = isInsideCampus ? baseLng + lngOffset : baseLng - 0.0120 + lngOffset;
+    const lat = isInsideCampus ? baseLat + latOffset : baseLat - 0.0150 + latOffset;
+    const lng = isInsideCampus ? baseLng + lngOffset : baseLng - 0.0150 + lngOffset;
 
     // Seed TimescaleDB LocationEvent
     await prisma.locationEvent.create({
@@ -101,42 +131,52 @@ async function main() {
         latitude: lat,
         longitude: lng,
         accuracy: 3.5,
-        speed: 0.2,
+        speed: 0,
         batteryLevel: 65 + (i % 30),
+        deviceModel: i % 2 === 0 ? 'iPhone 15 Pro' : 'MacBook Pro M1',
+        osVersion: i % 2 === 0 ? 'iOS 17.4' : 'macOS 14 Sonoma',
         networkType: 'WiFi 5G',
         gpsEnabled: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     });
 
-    // Seed Past 14 Days of Attendance Records in PostgreSQL
-    for (let d = 0; d < 14; d++) {
-      const pastDate = new Date();
-      pastDate.setDate(pastDate.getDate() - d);
-      pastDate.setHours(0, 0, 0, 0);
+    // Seed 14 Days Historical Attendance Log for this student
+    for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+      const date = new Date();
+      date.setDate(date.getDate() - dayOffset);
+      date.setHours(0, 0, 0, 0);
 
-      // Randomize attendance status for realistic historical data
-      const isPresent = (i + d) % 5 !== 0;
-      const checkInTime = new Date(pastDate);
-      checkInTime.setHours(9, 5 + (i % 15), 0);
+      // Determine status: 80% Present, 20% Absent/Checked Out
+      const isAbsentDay = (i + dayOffset) % 6 === 0;
+      const status = isAbsentDay ? 'Absent' : 'Present';
 
-      const checkOutTime = new Date(pastDate);
-      checkOutTime.setHours(17, 0, 0);
+      const checkInHour = 9 + ((i + dayOffset) % 2);
+      const checkInMinute = (i * 7 + dayOffset * 3) % 60;
+      const checkInDate = new Date(date);
+      checkInDate.setHours(checkInHour, checkInMinute, 0);
+
+      const checkOutHour = 16 + ((i + dayOffset) % 2);
+      const checkOutMinute = (i * 11 + dayOffset * 5) % 60;
+      const checkOutDate = new Date(date);
+      checkOutDate.setHours(checkOutHour, checkOutMinute, 0);
+
+      const durationMinutes = isAbsentDay ? 0 : Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60));
 
       await prisma.attendance.create({
         data: {
           studentId,
-          date: pastDate,
-          checkIn: isPresent ? checkInTime : null,
-          checkOut: isPresent ? checkOutTime : null,
-          status: isPresent ? 'Present' : 'Absent',
-          duration: isPresent ? 475 : 0
+          date,
+          checkIn: isAbsentDay ? null : checkInDate,
+          checkOut: isAbsentDay ? null : checkOutDate,
+          status,
+          duration: durationMinutes,
         }
       });
     }
   }
 
-  console.log('Seeding complete! 14 days of multi-day class attendance records generated for 50 students!');
+  console.log('✅ Seeding complete! 100 Students across 6 Departments and 14 days of historical attendance logs generated in PostgreSQL!');
 }
 
 main()

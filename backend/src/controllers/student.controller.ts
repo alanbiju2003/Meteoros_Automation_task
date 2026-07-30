@@ -9,20 +9,33 @@ const CAMPUS_LNG = 77.6051;
 const GEOFENCE_RADIUS = 500;
 
 export const getStudents = async (req: Request, res: Response) => {
+  const { date, department, status, search } = req.query;
+
   try {
+    const targetDate = date ? new Date(String(date)) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+
     const students = await prisma.student.findMany({
       include: {
         user: { select: { name: true, email: true } },
         department: { select: { name: true } },
         course: { select: { name: true } },
-        attendances: { take: 14, orderBy: { date: 'desc' } },
+        attendances: { orderBy: { date: 'desc' } },
         locationEvents: { take: 1, orderBy: { timestamp: 'desc' } },
       },
       orderBy: { rollNumber: 'asc' },
     });
 
     const formatted = students.map((s: any) => {
-      const latestAttendance = s.attendances[0];
+      // Find attendance record matching target date
+      const dateAttendance = s.attendances.find((a: any) => {
+        const aDate = new Date(a.date);
+        return aDate.getFullYear() === targetDate.getFullYear() &&
+               aDate.getMonth() === targetDate.getMonth() &&
+               aDate.getDate() === targetDate.getDate();
+      });
+
+      const latestAttendance = dateAttendance || s.attendances[0];
       const latestPing = s.locationEvents[0];
       const presentDays = s.attendances.filter((a: any) => a.status === 'Present').length;
       const totalDays = s.attendances.length;
@@ -37,12 +50,34 @@ export const getStudents = async (req: Request, res: Response) => {
         course: s.course?.name || 'B.Tech CSE',
         year: s.year,
         status: latestAttendance ? latestAttendance.status : 'Absent',
+        checkInTime: latestAttendance?.checkIn ? new Date(latestAttendance.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+        checkOutTime: latestAttendance?.checkOut ? new Date(latestAttendance.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
         battery: latestPing ? latestPing.batteryLevel : 82,
         attendancePercentage: attendancePct,
       };
     });
 
-    return res.json(formatted);
+    // Apply Filters
+    let filtered = formatted;
+
+    if (department && department !== 'all') {
+      filtered = filtered.filter((s: any) => s.department.toLowerCase() === String(department).toLowerCase());
+    }
+
+    if (status && status !== 'all') {
+      filtered = filtered.filter((s: any) => s.status.toLowerCase() === String(status).toLowerCase());
+    }
+
+    if (search) {
+      const q = String(search).toLowerCase();
+      filtered = filtered.filter((s: any) =>
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.rollNumber.toLowerCase().includes(q)
+      );
+    }
+
+    return res.json(filtered);
   } catch (error) {
     console.error('Error fetching students:', error);
     return res.status(500).json({ message: 'Server error fetching students' });

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Search, Download, UserPlus, Battery, RefreshCw, Eye, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Download, UserPlus, Battery, RefreshCw, Eye, CheckCircle2, AlertCircle, Calendar, Filter, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface Student {
@@ -19,14 +19,23 @@ interface Student {
   course: string;
   year: number;
   status: string;
+  checkInTime: string;
+  checkOutTime: string;
   battery: number;
+  attendancePercentage: number;
 }
 
 export default function Students() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Filter States
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
 
   // New Student Form State
   const [newName, setNewName] = useState('');
@@ -38,11 +47,17 @@ export default function Students() {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  // Fetch Students from PostgreSQL
+  // Fetch Students from PostgreSQL with Date & Filter params
   const { data: students = [], isLoading, refetch } = useQuery<Student[]>({
-    queryKey: ['students-list'],
+    queryKey: ['students-list', selectedDate, selectedDept, selectedStatus, searchTerm],
     queryFn: async () => {
-      const res = await axios.get('/api/students');
+      const params = new URLSearchParams();
+      if (selectedDate) params.append('date', selectedDate);
+      if (selectedDept !== 'all') params.append('department', selectedDept);
+      if (selectedStatus !== 'all') params.append('status', selectedStatus);
+      if (searchTerm) params.append('search', searchTerm);
+
+      const res = await axios.get(`/api/students?${params.toString()}`);
       return Array.isArray(res.data) ? res.data : [];
     },
   });
@@ -79,22 +94,24 @@ export default function Students() {
     },
   });
 
-  const filteredStudents = students.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.rollNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Preset Date Quick Selector Helper
+  const setPresetDate = (daysAgo: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
 
   const handleExportCSV = () => {
-    const headers = ['Name', 'Email', 'Roll Number', 'Department', 'Course', 'Status', 'Battery'];
-    const rows = filteredStudents.map((s) => [
+    const headers = ['Name', 'Email', 'Roll Number', 'Department', 'Course', `Status (${selectedDate})`, 'Check-In', 'Check-Out', 'Battery'];
+    const rows = students.map((s) => [
       `"${s.name}"`,
       `"${s.email}"`,
       `"${s.rollNumber}"`,
       `"${s.department}"`,
       `"${s.course}"`,
       `"${s.status}"`,
+      `"${s.checkInTime}"`,
+      `"${s.checkOutTime}"`,
       `${s.battery}%`,
     ]);
 
@@ -103,7 +120,7 @@ export default function Students() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `students_roster_${Date.now()}.csv`);
+    link.setAttribute('download', `students_attendance_${selectedDate}_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -114,22 +131,24 @@ export default function Students() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Student Roster & Tracking Grid</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <Calendar className="h-7 w-7 text-primary" /> Student Attendance Roster & Date Inspector
+          </h1>
           <p className="text-muted-foreground text-sm">
-            Manage student records, inspect real-time battery & location telemetry, or register new students.
+            Inspect real-time & historical daily attendance records across 100+ students with dynamic date filtering.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2 font-semibold">
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> Export CSV ({students.length})
           </Button>
 
           {/* Add New Student Dialog */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2 font-semibold bg-primary">
-                <UserPlus className="h-4 w-4" /> + Add New Student
+                <UserPlus className="h-4 w-4" /> + Register New Student
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -197,25 +216,94 @@ export default function Students() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <Card className="border border-border/60 shadow-sm p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by student name, roll number, or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 text-xs"
-          />
+      {/* Date & Filter Control Suite */}
+      <Card className="border border-border/60 shadow-sm p-4 bg-card">
+        <div className="grid gap-4 md:grid-cols-12 items-end">
+          {/* Date Picker Input */}
+          <div className="md:col-span-4 space-y-1.5">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                <Calendar className="h-4 w-4 text-primary" /> Filter Attendance Date
+              </Label>
+              <div className="flex gap-1 text-[10px]">
+                <button type="button" onClick={() => setPresetDate(0)} className="text-primary hover:underline font-semibold">Today</button>
+                <span>•</span>
+                <button type="button" onClick={() => setPresetDate(1)} className="text-primary hover:underline font-semibold">Yesterday</button>
+                <span>•</span>
+                <button type="button" onClick={() => setPresetDate(2)} className="text-primary hover:underline font-semibold">2 Days Ago</button>
+              </div>
+            </div>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="text-xs font-semibold bg-background"
+            />
+          </div>
+
+          {/* Department Filter */}
+          <div className="md:col-span-3 space-y-1.5">
+            <Label className="text-xs font-semibold flex items-center gap-1 text-muted-foreground">
+              <Filter className="h-3.5 w-3.5" /> Department
+            </Label>
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full bg-background border rounded-md px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All Departments (100+ Students)</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Artificial Intelligence">Artificial Intelligence</option>
+              <option value="Electronics & Communication">Electronics & Communication</option>
+              <option value="Information Technology">Information Technology</option>
+              <option value="Mechanical Engineering">Mechanical Engineering</option>
+              <option value="Civil Engineering">Civil Engineering</option>
+            </select>
+          </div>
+
+          {/* Attendance Status Filter */}
+          <div className="md:col-span-2 space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">Status ({selectedDate})</Label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full bg-background border rounded-md px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All Statuses</option>
+              <option value="Present">Present</option>
+              <option value="Absent">Absent</option>
+              <option value="Checked Out">Checked Out</option>
+            </select>
+          </div>
+
+          {/* Search Box */}
+          <div className="md:col-span-3 relative space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">Search Student</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Name, roll number, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 text-xs"
+              />
+            </div>
+          </div>
         </div>
       </Card>
 
-      {/* Table Card */}
+      {/* Roster & Date Attendance Table */}
       <Card className="border border-border/60 shadow-sm">
         <CardHeader className="border-b pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            PostgreSQL Student Master Records ({filteredStudents.length} Active)
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base font-semibold">
+              Attendance Audit Logs for Date: <span className="text-primary font-mono font-bold">{selectedDate}</span>
+            </CardTitle>
+            <Badge className="bg-primary/10 text-primary border-primary/30 text-xs">
+              {students.length} Records Found
+            </Badge>
+          </div>
+
           <Button variant="ghost" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
@@ -227,31 +315,46 @@ export default function Students() {
                 <tr className="border-b bg-muted/40 text-muted-foreground font-semibold">
                   <th className="p-3">Student Name</th>
                   <th className="p-3">Roll Number</th>
-                  <th className="p-3">Department</th>
+                  <th className="p-3">Department & Course</th>
+                  <th className="p-3 text-center">Status ({selectedDate})</th>
+                  <th className="p-3">Check-In / Out Time</th>
                   <th className="p-3">Battery</th>
-                  <th className="p-3">Status</th>
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
+                {students.length > 0 ? (
+                  students.map((student) => (
                     <tr key={student.id} className="hover:bg-muted/30 font-medium">
                       <td className="p-3">
                         <p className="font-bold text-slate-900 dark:text-slate-100">{student.name}</p>
                         <p className="text-[11px] text-muted-foreground">{student.email}</p>
                       </td>
                       <td className="p-3 font-mono font-semibold">{student.rollNumber}</td>
-                      <td className="p-3">{student.department}</td>
                       <td className="p-3">
-                        <span className="flex items-center gap-1 font-semibold">
-                          <Battery className="h-3.5 w-3.5 text-amber-500" /> {student.battery}%
-                        </span>
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">{student.department}</p>
+                        <p className="text-[11px] text-muted-foreground">{student.course}</p>
                       </td>
-                      <td className="p-3">
-                        <Badge variant={student.status === 'Present' ? 'default' : 'secondary'} className={student.status === 'Present' ? 'bg-emerald-600 text-white' : ''}>
+                      <td className="p-3 text-center">
+                        <Badge
+                          variant={student.status === 'Present' ? 'default' : 'secondary'}
+                          className={student.status === 'Present' ? 'bg-emerald-600 text-white font-semibold' : 'bg-slate-600 text-white'}
+                        >
                           {student.status}
                         </Badge>
+                      </td>
+                      <td className="p-3 font-mono text-[11px]">
+                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                          <Clock className="h-3.5 w-3.5 text-primary" />
+                          <span>In: {student.checkInTime}</span>
+                          <span>|</span>
+                          <span>Out: {student.checkOutTime}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className="flex items-center gap-1 font-semibold text-amber-600">
+                          <Battery className="h-3.5 w-3.5" /> {student.battery}%
+                        </span>
                       </td>
                       <td className="p-3 text-right">
                         <Button
@@ -267,8 +370,8 @@ export default function Students() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No students found matching "{searchTerm}". Click "+ Add New Student" to register one!
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                      No student attendance records found for date {selectedDate} with selected filters.
                     </td>
                   </tr>
                 )}
