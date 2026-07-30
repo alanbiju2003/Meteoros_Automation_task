@@ -15,7 +15,7 @@ const LAST_NAMES = [
 ];
 
 async function main() {
-  console.log('🚀 Seeding 100+ Students across 6 Departments & 14 Days of Attendance History...');
+  console.log('🚀 Seeding 100+ Students across 6 Departments with Past 30 Days Attendance History...');
 
   // Create Roles
   const roles = await Promise.all([
@@ -27,7 +27,9 @@ async function main() {
   const superAdminRole = roles[0];
   const studentRole = roles[2];
 
-  // Clean old student records
+  // Clean old attendance and student user records
+  await prisma.attendance.deleteMany({});
+  await prisma.locationEvent.deleteMany({});
   await prisma.user.deleteMany({
     where: { roleId: studentRole.id }
   });
@@ -76,6 +78,8 @@ async function main() {
 
   const baseLat = 12.9337;
   const baseLng = 77.6051;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   // Seed 100 Students
   for (let i = 1; i <= 100; i++) {
@@ -116,7 +120,7 @@ async function main() {
 
     const studentId = user.studentProfile!.id;
 
-    // Distribute Coordinates
+    // Distribute Coordinates around campus
     const isInsideCampus = i % 5 !== 0;
     const latOffset = ((i % 10) - 5) * 0.0008;
     const lngOffset = (Math.floor(i / 10) - 5) * 0.0008;
@@ -124,7 +128,7 @@ async function main() {
     const lat = isInsideCampus ? baseLat + latOffset : baseLat - 0.0150 + latOffset;
     const lng = isInsideCampus ? baseLng + lngOffset : baseLng - 0.0150 + lngOffset;
 
-    // Seed TimescaleDB LocationEvent
+    // Seed Location Event
     await prisma.locationEvent.create({
       data: {
         studentId,
@@ -141,17 +145,17 @@ async function main() {
       }
     });
 
-    // Seed 14 Days Historical Attendance Log for this student
-    for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
-      const date = new Date();
+    // Seed Past 30 Days Attendance History up to TODAY (No Future Dates!)
+    for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
+      const date = new Date(today);
       date.setDate(date.getDate() - dayOffset);
       date.setHours(0, 0, 0, 0);
 
-      // Determine status: 80% Present, 20% Absent/Checked Out
-      const isAbsentDay = (i + dayOffset) % 6 === 0;
+      // 85% Present, 15% Absent
+      const isAbsentDay = (i + dayOffset) % 7 === 0;
       const status = isAbsentDay ? 'Absent' : 'Present';
 
-      const checkInHour = 9 + ((i + dayOffset) % 2);
+      const checkInHour = 8 + ((i + dayOffset) % 2);
       const checkInMinute = (i * 7 + dayOffset * 3) % 60;
       const checkInDate = new Date(date);
       checkInDate.setHours(checkInHour, checkInMinute, 0);
@@ -176,7 +180,7 @@ async function main() {
     }
   }
 
-  console.log('✅ Seeding complete! 100 Students across 6 Departments and 14 days of historical attendance logs generated in PostgreSQL!');
+  console.log('✅ Clean database seed completed! 100 Students created with Past 30 Days historical records up to Today (No future dates)!');
 }
 
 main()
