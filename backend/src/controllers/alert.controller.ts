@@ -4,6 +4,23 @@ import nodemailer from 'nodemailer';
 
 const DEFAULT_CC_EMAIL = 'alanthomasbiju01@gmail.com';
 
+const getTransporter = () => {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = process.env.SMTP_USER || 'alanthomasbiju01@gmail.com';
+  const pass = (process.env.SMTP_PASS || 'yihe rwsf lpbz msmd').replace(/\s+/g, '');
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: false,
+    auth: {
+      user,
+      pass,
+    },
+  });
+};
+
 export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
   const { studentName, rollNumber, riskType, details, recipientEmail, ccEmail } = req.body;
 
@@ -68,63 +85,30 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
 `;
 
   try {
-    let emailPreviewUrl: string | boolean = false;
+    const transporter = getTransporter();
 
-    // 1. If SMTP env credentials exist, send via real SMTP server
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+    const info = await transporter.sendMail({
+      from: '"SmartCampus Security Engine" <alanthomasbiju01@gmail.com>',
+      to: targetEmail,
+      cc: targetCc,
+      subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
+      html: htmlTemplate,
+    });
 
-      await transporter.sendMail({
-        from: '"SmartCampus Security Engine" <alerts@college.edu>',
-        to: targetEmail,
-        cc: targetCc,
-        subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
-        html: htmlTemplate,
-      });
-    } else {
-      // 2. Dynamic Ethereal test account for instant live email delivery URL
-      const testAccount = await nodemailer.createTestAccount();
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: '"SmartCampus Security Engine" <alerts@college.edu>',
-        to: targetEmail,
-        cc: targetCc,
-        subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
-        html: htmlTemplate,
-      });
-
-      emailPreviewUrl = nodemailer.getTestMessageUrl(info) || false;
-    }
+    console.log('Real Email Dispatched Successfully via Gmail SMTP:', info.messageId);
 
     return res.json({
       status: 'SUCCESS',
-      message: `Security Alert Email dispatched to ${targetEmail} (CC: ${targetCc})`,
+      message: `REAL Gmail Alert Email dispatched to ${targetEmail} (CC: ${targetCc})! Message ID: ${info.messageId}`,
       recipientEmail: targetEmail,
       ccEmail: targetCc,
-      emailPreviewUrl,
+      messageId: info.messageId,
       incidentId: `SEC-INC-${Date.now()}`,
       htmlPreview: htmlTemplate,
     });
-  } catch (error) {
-    console.error('Error sending security email:', error);
-    return res.status(500).json({ message: 'Failed to send security email alert' });
+  } catch (error: any) {
+    console.error('Error sending real security email via Gmail SMTP:', error);
+    return res.status(500).json({ message: 'Failed to send security email alert', error: error.message });
   }
 };
 
@@ -208,60 +192,29 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 `;
 
   try {
-    let emailPreviewUrl: string | boolean = false;
+    const transporter = getTransporter();
 
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+    const info = await transporter.sendMail({
+      from: '"SmartCampus Audit System" <alanthomasbiju01@gmail.com>',
+      to: targetEmail,
+      cc: targetCc,
+      subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
+      html: htmlTemplate,
+    });
 
-      await transporter.sendMail({
-        from: '"SmartCampus Audit System" <reports@college.edu>',
-        to: targetEmail,
-        cc: targetCc,
-        subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
-        html: htmlTemplate,
-      });
-    } else {
-      const testAccount = await nodemailer.createTestAccount();
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: '"SmartCampus Audit System" <reports@college.edu>',
-        to: targetEmail,
-        cc: targetCc,
-        subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
-        html: htmlTemplate,
-      });
-
-      emailPreviewUrl = nodemailer.getTestMessageUrl(info) || false;
-    }
+    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP:', info.messageId);
 
     return res.json({
       status: 'SUCCESS',
-      message: `Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCc})`,
+      message: `REAL Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCc})! Message ID: ${info.messageId}`,
       recipientEmail: targetEmail,
       ccEmail: targetCc,
-      emailPreviewUrl,
+      messageId: info.messageId,
       reportDate: new Date().toISOString().split('T')[0],
       htmlPreview: htmlTemplate,
     });
-  } catch (error) {
-    console.error('Error sending nightly audit report:', error);
-    return res.status(500).json({ message: 'Failed to send nightly audit report' });
+  } catch (error: any) {
+    console.error('Error sending real nightly audit report via Gmail SMTP:', error);
+    return res.status(500).json({ message: 'Failed to send nightly audit report', error: error.message });
   }
 };
