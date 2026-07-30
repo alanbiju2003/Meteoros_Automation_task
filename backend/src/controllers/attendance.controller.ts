@@ -70,7 +70,7 @@ export const checkIn = async (req: Request, res: Response) => {
       },
     });
 
-    // Trigger Automatic Real Gmail Alert if outside geofence (Delhi / NCR)
+    // Trigger ONE-TIME Real Gmail Alert ONLY on explicit Check-In action if outside geofence (Delhi / NCR)
     if (!isInsideGeofence) {
       const student = await prisma.student.findUnique({
         where: { id: studentId },
@@ -110,7 +110,9 @@ export const checkIn = async (req: Request, res: Response) => {
 };
 
 export const checkOut = async (req: Request, res: Response) => {
-  const { studentId } = req.body;
+  const { studentId, latitude, longitude, batteryLevel } = req.body;
+  const userAgentHeader = (req.headers['user-agent'] as string) || '';
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '182.73.18.94';
 
   if (!studentId) {
     return res.status(400).json({ message: 'studentId is required' });
@@ -149,6 +151,37 @@ export const checkOut = async (req: Request, res: Response) => {
         duration: durationMinutes,
       },
     });
+
+    // Trigger ONE-TIME Real Gmail Alert ONLY on explicit Check-Out action if outside geofence
+    const lat = latitude ? parseFloat(latitude) : CAMPUS_LAT;
+    const lng = longitude ? parseFloat(longitude) : CAMPUS_LNG;
+    const distanceMeters = Math.round(getHaversineDistance(lat, lng, CAMPUS_LAT, CAMPUS_LNG));
+
+    if (distanceMeters > GEOFENCE_RADIUS_METERS) {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: {
+          user: { select: { name: true } },
+          department: { select: { name: true } },
+        },
+      });
+
+      if (student) {
+        const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
+        const parsedBattery = batteryLevel !== undefined ? parseFloat(batteryLevel) : 85;
+        const distanceKm = Math.round(distanceMeters / 1000) || 1743;
+
+        sendGeofenceAlertEmail({
+          studentName: student.user?.name || 'Student',
+          rollNumber: student.rollNumber,
+          department: student.department?.name || 'Computer Science',
+          distanceKm,
+          batteryLevel: parsedBattery,
+          deviceModel: liveDevice.deviceModel,
+          cityLocation: 'Delhi / NCR (Remote Check-Out)',
+        }).catch(err => console.error('Error sending check-out auto email:', err));
+      }
+    }
 
     return res.json({
       message: 'Check-Out logged successfully',
