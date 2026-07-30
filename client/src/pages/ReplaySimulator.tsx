@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
-import { MapContainer, TileLayer, Marker, Popup, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge, User, Search, Check } from 'lucide-react';
+import { Play, Pause, RefreshCw, ShieldAlert, Zap, CloudRain, Crosshair, MapPin, Gauge, User, Search } from 'lucide-react';
 
 const createCustomMarker = (color: string, label: string) => {
   return L.divIcon({
     className: 'custom-leaflet-marker-wrapper',
     html: `
-      <div style="display: flex; flex-direction: column; items-center; justify-content: center; transform: translate(-50%, -100%);">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translate(-50%, -100%);">
         <div style="background-color: ${color}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 1px solid white;">
           ${label}
         </div>
@@ -26,6 +26,16 @@ const createCustomMarker = (color: string, label: string) => {
     iconAnchor: [60, 40]
   });
 };
+
+function MapRecenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, 13);
+    }
+  }, [center, map]);
+  return null;
+}
 
 export default function ReplaySimulator() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -44,7 +54,7 @@ export default function ReplaySimulator() {
   const campusCenter: [number, number] = [12.9337, 77.6051];
   const geofenceRadius = isRainMode ? 560 : 500;
 
-  // Query 100 Students from PostgreSQL
+  // Query Students list from PostgreSQL
   const { data: students = [] } = useQuery({
     queryKey: ['students-list'],
     queryFn: async () => {
@@ -59,6 +69,42 @@ export default function ReplaySimulator() {
       setSelectedStudentId(students[0].id);
     }
   }, [students, selectedStudentId]);
+
+  // Query full student telemetry for selected student ID
+  const { data: studentDetails } = useQuery({
+    queryKey: ['student-details', selectedStudentId],
+    queryFn: async () => {
+      if (!selectedStudentId) return null;
+      const res = await axios.get(`/api/students/${selectedStudentId}`);
+      return res.data;
+    },
+    enabled: !!selectedStudentId,
+  });
+
+  // When selected student details load, update map coordinates & run evaluation automatically
+  useEffect(() => {
+    if (studentDetails?.geofenceEvaluation) {
+      const lat = studentDetails.geofenceEvaluation.studentLat;
+      const lng = studentDetails.geofenceEvaluation.studentLng;
+      if (lat && lng) {
+        setTestLat(lat);
+        setTestLng(lng);
+        // Automatically evaluate telemetry
+        axios.post('/api/telemetry/evaluate', {
+          studentId: selectedStudentId,
+          latitude: lat,
+          longitude: lng,
+          accuracy: 5,
+          batteryLevel: studentDetails.deviceInfo?.batteryLevel || 85,
+          speed: 0,
+          networkType: 'WiFi 5G',
+          prevLat: 12.9337,
+          prevLng: 77.6051,
+          timeDiffSeconds: 60,
+        }).then(res => setEvaluationResult(res.data)).catch(() => {});
+      }
+    }
+  }, [studentDetails, selectedStudentId]);
 
   const selectedStudent = students.find((s: any) => s.id === selectedStudentId) || students[0];
 
@@ -109,6 +155,8 @@ export default function ReplaySimulator() {
     const displayHr = hrs > 12 ? hrs - 12 : hrs;
     return `${displayHr.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${ampm}`;
   };
+
+  const mapCenter: [number, number] = [testLat, testLng];
 
   return (
     <div className="space-y-6 animate-in fade-in max-w-7xl mx-auto">
@@ -201,18 +249,20 @@ export default function ReplaySimulator() {
                 </Button>
                 <span className="text-sm font-bold text-emerald-400">{formatReplayHour(replayTime)}</span>
               </div>
-              <Badge className={isRainMode ? 'bg-blue-600 text-white' : 'bg-primary text-primary-foreground'}>
-                Geofence Radius: {geofenceRadius}m
+              <Badge className={evaluationResult?.isSpoofed || !evaluationResult?.isInsideGeofence ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}>
+                {evaluationResult?.isInsideGeofence ? `Geofence: ${geofenceRadius}m (Inside)` : `Remote / Delhi NCR (${evaluationResult?.distanceMeters || 1743000}m Away)`}
               </Badge>
             </div>
 
             {/* Map Engine */}
             <div className="flex-1 w-full h-full relative">
-              <MapContainer center={campusCenter} zoom={15} className="h-full w-full">
+              <MapContainer center={mapCenter} zoom={13} className="h-full w-full">
                 <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+
+                <MapRecenter center={mapCenter} />
 
                 {/* Adaptive Polygon */}
                 <Polygon
@@ -223,13 +273,13 @@ export default function ReplaySimulator() {
                 {/* Simulated Student Marker */}
                 <Marker
                   position={[testLat, testLng]}
-                  icon={createCustomMarker(evaluationResult?.isSpoofed ? '#ef4444' : '#10b981', selectedStudent?.name || 'Selected Student')}
+                  icon={createCustomMarker(evaluationResult?.isSpoofed || !evaluationResult?.isInsideGeofence ? '#ef4444' : '#10b981', selectedStudent?.name || 'Selected Student')}
                 >
                   <Popup>
                     <div className="text-xs space-y-1">
                       <p className="font-bold">{selectedStudent?.name} ({selectedStudent?.rollNumber})</p>
-                      <p className="text-[10px] text-muted-foreground">{selectedStudent?.department}</p>
-                      <p>Lat: {testLat.toFixed(6)}, Lng: {testLng.toFixed(6)}</p>
+                      <p className="text-muted-foreground">{selectedStudent?.department}</p>
+                      <p className="font-mono">Lat: {testLat.toFixed(6)}, Lng: {testLng.toFixed(6)}</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -319,9 +369,9 @@ export default function ReplaySimulator() {
 
           {/* Audit Results Card */}
           {evaluationResult && (
-            <Card className={`border shadow-sm ${evaluationResult.isSpoofed ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+            <Card className={`border shadow-sm ${evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
               <CardHeader className="border-b pb-3">
-                <CardTitle className={`text-base font-semibold flex items-center gap-2 ${evaluationResult.isSpoofed ? 'text-rose-700' : 'text-emerald-700'}`}>
+                <CardTitle className={`text-base font-semibold flex items-center gap-2 ${evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'text-rose-700' : 'text-emerald-700'}`}>
                   <ShieldAlert className="h-5 w-5" /> Evaluation Output Analysis
                 </CardTitle>
               </CardHeader>
@@ -332,12 +382,12 @@ export default function ReplaySimulator() {
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
                   <span>Distance from Campus Center:</span>
-                  <span className="font-mono">{evaluationResult.distanceMeters}m</span>
+                  <span className="font-mono">{evaluationResult.distanceMeters}m ({Math.round(evaluationResult.distanceMeters / 1000)} km)</span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
-                  <span>Spoofing / Teleport Anomaly:</span>
-                  <Badge className={evaluationResult.isSpoofed ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}>
-                    {evaluationResult.isSpoofed ? 'HIGH RISK FLAG' : 'PASSED (NORMAL)'}
+                  <span>Spoofing / Location Anomaly:</span>
+                  <Badge className={evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'bg-rose-600 text-white font-bold' : 'bg-emerald-600 text-white font-bold'}>
+                    {evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'OUTSIDE CAMPUS (DELHI / NCR)' : 'PASSED (NORMAL)'}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground pt-1">{evaluationResult.reason}</p>
