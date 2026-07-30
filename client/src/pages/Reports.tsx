@@ -13,7 +13,8 @@ export default function Reports() {
   const [department, setDepartment] = useState('all');
   const [format, setFormat] = useState('csv');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState('dean-academics@college.edu');
+  const [recipientEmail, setRecipientEmail] = useState('alanthomasbiju01@gmail.com');
+  const [ccEmail, setCcEmail] = useState('alanthomasbiju01@gmail.com');
 
   // Preview Modal State
   const [previewHtml, setPreviewHtml] = useState<string>('');
@@ -51,12 +52,13 @@ export default function Reports() {
         riskType: 'GPS Spoofing & Teleportation Speed Anomaly (>180 km/h jump)',
         details: 'Student position jumped between Noida and Bengaluru in <2 minutes. Mock Location API enabled.',
         recipientEmail,
+        ccEmail,
       });
       return res.data;
     },
     onSuccess: (data) => {
-      setSuccessMessage(`✅ Security Email Alert dispatched to ${data.recipientEmail}`);
-      setPreviewTitle('Real-Time Security Alert Email Preview');
+      setSuccessMessage(`✅ Security Email Alert dispatched to ${data.recipientEmail} (CC: ${data.ccEmail})`);
+      setPreviewTitle(`Security Incident Email Alert (TO: ${data.recipientEmail} | CC: ${data.ccEmail})`);
       setPreviewHtml(data.htmlPreview);
       setIsModalOpen(true);
     },
@@ -67,12 +69,13 @@ export default function Reports() {
     mutationFn: async () => {
       const res = await axios.post('/api/alerts/nightly-audit-report', {
         recipientEmail,
+        ccEmail,
       });
       return res.data;
     },
     onSuccess: (data) => {
-      setSuccessMessage(`✅ Nightly Threat Audit Report sent to ${data.recipientEmail}`);
-      setPreviewTitle('Nightly Threat & Audit Email Report Preview');
+      setSuccessMessage(`✅ Nightly Threat Audit Report sent to ${data.recipientEmail} (CC: ${data.ccEmail})`);
+      setPreviewTitle(`Nightly Threat & Audit Email Report (TO: ${data.recipientEmail} | CC: ${data.ccEmail})`);
       setPreviewHtml(data.htmlPreview);
       setIsModalOpen(true);
     },
@@ -87,7 +90,7 @@ export default function Reports() {
             <FileSpreadsheet className="h-7 w-7 text-primary" /> Security Alerts & Stakeholder Email Engine
           </h1>
           <p className="text-muted-foreground text-sm">
-            Automated stakeholder security dispatches, nightly threat audit reports, and PostgreSQL compliance exports.
+            Automated stakeholder security dispatches, CC email reporting, and PostgreSQL compliance exports.
           </p>
         </div>
       </div>
@@ -144,17 +147,27 @@ export default function Reports() {
         <Card className="border-2 border-slate-800 shadow-md bg-slate-950 text-slate-100">
           <CardHeader className="border-b border-slate-800 pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2 text-rose-400">
-              <Mail className="h-5 w-5 text-rose-400" /> Stakeholder Security & Threat Email Engine
+              <Mail className="h-5 w-5 text-rose-400" /> Stakeholder Security & CC Email Engine
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-4 text-xs">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-semibold">Stakeholder Email Recipient</Label>
-              <Input
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                className="bg-slate-900 border-slate-700 text-slate-100 text-xs font-mono"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-300 font-semibold">Recipient Email (TO:)</Label>
+                <Input
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  className="bg-slate-900 border-slate-700 text-slate-100 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-300 font-semibold">Stakeholder CC Email (CC:)</Label>
+                <Input
+                  value={ccEmail}
+                  onChange={(e) => setCcEmail(e.target.value)}
+                  className="bg-slate-900 border-slate-700 text-slate-100 text-xs font-mono"
+                />
+              </div>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 text-[11px]">
@@ -163,6 +176,9 @@ export default function Reports() {
               </p>
               <p className="text-slate-300">Student: <strong>Aarav Sharma (CSE2023001)</strong></p>
               <p className="text-slate-400 text-[10px]">Reason: GPS Teleportation Speed Anomaly (&gt;180 km/h) & Mock Location Detected</p>
+              <p className="text-emerald-400 text-[10px] pt-1 border-t border-slate-800 font-semibold">
+                ✉️ CC Email Configured: {ccEmail}
+              </p>
             </div>
 
             <div className="space-y-2 pt-1">
@@ -171,7 +187,7 @@ export default function Reports() {
                 disabled={securityEmailMutation.isPending}
                 className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold gap-2"
               >
-                <Send className="h-4 w-4" /> Dispatch Real-Time Security Incident Email
+                <Send className="h-4 w-4" /> Dispatch Real-Time Security Email (With CC)
               </Button>
 
               <Button
@@ -180,7 +196,7 @@ export default function Reports() {
                 variant="outline"
                 className="w-full border-slate-700 text-slate-200 hover:bg-slate-900 font-semibold gap-2"
               >
-                <Moon className="h-4 w-4 text-blue-400" /> Send Nightly Automated Threat Audit Report
+                <Moon className="h-4 w-4 text-blue-400" /> Send Nightly Automated Threat Report (With CC)
               </Button>
             </div>
           </CardContent>
@@ -239,7 +255,7 @@ export default function Reports() {
               <Mail className="h-5 w-5 text-primary" /> {previewTitle}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Live HTML Email template dispatched to stakeholders.
+              Live HTML Email template dispatched to stakeholders with CC enabled.
             </DialogDescription>
           </DialogHeader>
 

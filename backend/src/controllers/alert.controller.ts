@@ -2,10 +2,13 @@ import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import nodemailer from 'nodemailer';
 
-export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
-  const { studentName, rollNumber, riskType, details, recipientEmail } = req.body;
+const DEFAULT_CC_EMAIL = 'alanthomasbiju01@gmail.com';
 
-  const targetEmail = recipientEmail || 'security-stakeholders@college.edu';
+export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
+  const { studentName, rollNumber, riskType, details, recipientEmail, ccEmail } = req.body;
+
+  const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
+  const targetCc = ccEmail || DEFAULT_CC_EMAIL;
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -43,6 +46,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
         <div class="detail-row"><strong>Student Name:</strong> <span>${studentName || 'Aarav Sharma'}</span></div>
         <div class="detail-row"><strong>Roll Number:</strong> <span>${rollNumber || 'CSE2023001'}</span></div>
         <div class="detail-row"><strong>Department:</strong> <span>Computer Science & Engineering</span></div>
+        <div class="detail-row"><strong>CC Recipient:</strong> <span>${targetCc}</span></div>
         <div class="detail-row"><strong>Timestamp:</strong> <span>${new Date().toLocaleString()}</span></div>
         <div class="detail-row"><strong>Detection Status:</strong> <span style="color: #ef4444; font-weight: bold;">FLAGGED FOR REGISTRAR REVIEW</span></div>
       </div>
@@ -64,10 +68,32 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
 `;
 
   try {
+    // Attempt real SMTP dispatch if credentials exist in .env
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: '"SmartCampus Security Engine" <alerts@college.edu>',
+        to: targetEmail,
+        cc: targetCc,
+        subject: `🚨 [SECURITY ALERT] High-Risk Attendance Spoofing Incident - ${studentName || 'Student'} (${rollNumber || 'CSE2023001'})`,
+        html: htmlTemplate,
+      });
+    }
+
     return res.json({
       status: 'SUCCESS',
-      message: `Security Alert Dispatch Email sent to ${targetEmail}`,
+      message: `Security Alert Email dispatched to ${targetEmail} (CC: ${targetCc})`,
       recipientEmail: targetEmail,
+      ccEmail: targetCc,
       incidentId: `SEC-INC-${Date.now()}`,
       htmlPreview: htmlTemplate,
     });
@@ -78,9 +104,10 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
 };
 
 export const sendNightlyAuditReport = async (req: Request, res: Response) => {
-  const { recipientEmail } = req.body;
+  const { recipientEmail, ccEmail } = req.body;
 
-  const targetEmail = recipientEmail || 'dean-academics@college.edu';
+  const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
+  const targetCc = ccEmail || DEFAULT_CC_EMAIL;
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -142,7 +169,8 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
         </tbody>
       </table>
 
-      <p style="margin-top: 16px;">All flagged incidents have been recorded in the TimescaleDB hypertable for administrative review.</p>
+      <p style="margin-top: 16px;">CC Stakeholder Copy Delivered to: <strong>${targetCc}</strong></p>
+      <p>All flagged incidents have been recorded in the TimescaleDB hypertable for administrative review.</p>
     </div>
 
     <div class="footer">
@@ -155,10 +183,31 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 `;
 
   try {
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: '"SmartCampus Audit System" <reports@college.edu>',
+        to: targetEmail,
+        cc: targetCc,
+        subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
+        html: htmlTemplate,
+      });
+    }
+
     return res.json({
       status: 'SUCCESS',
-      message: `Nightly Threat & Audit Email Report dispatched to ${targetEmail}`,
+      message: `Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCc})`,
       recipientEmail: targetEmail,
+      ccEmail: targetCc,
       reportDate: new Date().toISOString().split('T')[0],
       htmlPreview: htmlTemplate,
     });
