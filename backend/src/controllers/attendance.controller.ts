@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
-import { getHaversineDistance, getCityFromCoordinates } from '../utils/geofence.js';
+import { getHaversineDistance, fetchRealReverseGeocode } from '../utils/geofence.js';
 import { parseDeviceUserAgent } from '../utils/deviceDetector.js';
 import { sendGeofenceAlertEmail } from '../utils/emailService.js';
 
@@ -70,8 +70,8 @@ export const checkIn = async (req: Request, res: Response) => {
       },
     });
 
-    // Dynamically resolve city location from latitude & longitude
-    const dynamicCity = getCityFromCoordinates(lat, lng);
+    // Fetch REAL physical address from OpenStreetMap Nominatim API
+    const realPhysicalAddress = await fetchRealReverseGeocode(lat, lng);
 
     // Trigger ONE-TIME Real Gmail Alert ONLY on explicit Check-In action if outside geofence
     if (!isInsideGeofence) {
@@ -92,7 +92,7 @@ export const checkIn = async (req: Request, res: Response) => {
           distanceKm,
           batteryLevel: parsedBattery,
           deviceModel: liveDevice.deviceModel,
-          cityLocation: dynamicCity,
+          cityLocation: realPhysicalAddress,
         }).catch(err => console.error('Error sending auto email:', err));
       }
     }
@@ -100,7 +100,7 @@ export const checkIn = async (req: Request, res: Response) => {
     return res.json({
       message: isApprovedCheckIn
         ? 'Geofence Verified Check-In Successful'
-        : `Outside Campus Geofence (${dynamicCity} Flagged)`,
+        : `Outside Campus Geofence (${realPhysicalAddress} Flagged)`,
       attendance,
       distanceMeters,
       isInsideGeofence,
@@ -173,7 +173,7 @@ export const checkOut = async (req: Request, res: Response) => {
         const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
         const parsedBattery = batteryLevel !== undefined ? parseFloat(batteryLevel) : 85;
         const distanceKm = Math.round(distanceMeters / 1000);
-        const dynamicCity = getCityFromCoordinates(lat, lng);
+        const realPhysicalAddress = await fetchRealReverseGeocode(lat, lng);
 
         sendGeofenceAlertEmail({
           studentName: student.user?.name || 'Student',
@@ -182,7 +182,7 @@ export const checkOut = async (req: Request, res: Response) => {
           distanceKm,
           batteryLevel: parsedBattery,
           deviceModel: liveDevice.deviceModel,
-          cityLocation: `${dynamicCity} (Check-Out)`,
+          cityLocation: `${realPhysicalAddress} (Check-Out)`,
         }).catch(err => console.error('Error sending check-out auto email:', err));
       }
     }

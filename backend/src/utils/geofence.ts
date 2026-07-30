@@ -46,3 +46,26 @@ export function getCityFromCoordinates(lat: number, lng: number): string {
 
   return `Remote Location (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`;
 }
+
+// Real-Time OpenStreetMap Nominatim Reverse Geocoding API Lookup
+export async function fetchRealReverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'SmartCampus-Attendance-Engine/1.0',
+      },
+    });
+
+    if (response.ok) {
+      const data: any = await response.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    }
+  } catch (error) {
+    // Silent fallback to city region lookup
+  }
+
+  return getCityFromCoordinates(lat, lng);
+}
