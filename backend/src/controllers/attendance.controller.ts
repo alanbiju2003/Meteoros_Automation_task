@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
-import { getHaversineDistance } from '../utils/geofence.js';
+import { getHaversineDistance, getCityFromCoordinates } from '../utils/geofence.js';
 import { parseDeviceUserAgent } from '../utils/deviceDetector.js';
 import { sendGeofenceAlertEmail } from '../utils/emailService.js';
 
@@ -70,7 +70,10 @@ export const checkIn = async (req: Request, res: Response) => {
       },
     });
 
-    // Trigger ONE-TIME Real Gmail Alert ONLY on explicit Check-In action if outside geofence (Delhi / NCR)
+    // Dynamically resolve city location from latitude & longitude
+    const dynamicCity = getCityFromCoordinates(lat, lng);
+
+    // Trigger ONE-TIME Real Gmail Alert ONLY on explicit Check-In action if outside geofence
     if (!isInsideGeofence) {
       const student = await prisma.student.findUnique({
         where: { id: studentId },
@@ -81,7 +84,7 @@ export const checkIn = async (req: Request, res: Response) => {
       });
 
       if (student) {
-        const distanceKm = Math.round(distanceMeters / 1000) || 1743;
+        const distanceKm = Math.round(distanceMeters / 1000);
         sendGeofenceAlertEmail({
           studentName: student.user?.name || 'Student',
           rollNumber: student.rollNumber,
@@ -89,7 +92,7 @@ export const checkIn = async (req: Request, res: Response) => {
           distanceKm,
           batteryLevel: parsedBattery,
           deviceModel: liveDevice.deviceModel,
-          cityLocation: 'Delhi / NCR (Remote)',
+          cityLocation: dynamicCity,
         }).catch(err => console.error('Error sending auto email:', err));
       }
     }
@@ -97,7 +100,7 @@ export const checkIn = async (req: Request, res: Response) => {
     return res.json({
       message: isApprovedCheckIn
         ? 'Geofence Verified Check-In Successful'
-        : 'Outside Campus Geofence (Remote Check-In Flagged)',
+        : `Outside Campus Geofence (${dynamicCity} Flagged)`,
       attendance,
       distanceMeters,
       isInsideGeofence,
@@ -169,7 +172,8 @@ export const checkOut = async (req: Request, res: Response) => {
       if (student) {
         const liveDevice = parseDeviceUserAgent(userAgentHeader, clientIp);
         const parsedBattery = batteryLevel !== undefined ? parseFloat(batteryLevel) : 85;
-        const distanceKm = Math.round(distanceMeters / 1000) || 1743;
+        const distanceKm = Math.round(distanceMeters / 1000);
+        const dynamicCity = getCityFromCoordinates(lat, lng);
 
         sendGeofenceAlertEmail({
           studentName: student.user?.name || 'Student',
@@ -178,7 +182,7 @@ export const checkOut = async (req: Request, res: Response) => {
           distanceKm,
           batteryLevel: parsedBattery,
           deviceModel: liveDevice.deviceModel,
-          cityLocation: 'Delhi / NCR (Remote Check-Out)',
+          cityLocation: `${dynamicCity} (Check-Out)`,
         }).catch(err => console.error('Error sending check-out auto email:', err));
       }
     }

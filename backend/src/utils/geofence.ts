@@ -19,3 +19,30 @@ export function getHaversineDistance(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in meters
 }
+
+// Dynamically resolve city/region from latitude & longitude coordinates
+export function getCityFromCoordinates(lat: number, lng: number): string {
+  if (lat >= 28.3 && lat <= 28.9 && lng >= 76.8 && lng <= 77.6) {
+    return 'Delhi / NCR (Noida / Gurgaon)';
+  }
+  if (lat >= 18.8 && lat <= 19.4 && lng >= 72.7 && lng <= 73.3) {
+    return 'Mumbai / Maharashtra';
+  }
+  if (lat >= 12.8 && lat <= 13.1 && lng >= 77.4 && lng <= 77.7) {
+    return 'Bengaluru Campus / Karnataka';
+  }
+  if (lat >= 17.1 && lat <= 17.6 && lng >= 78.2 && lng <= 78.6) {
+    return 'Hyderabad / Telangana';
+  }
+  if (lat >= 12.8 && lat <= 13.3 && lng >= 80.0 && lng <= 80.4) {
+    return 'Chennai / Tamil Nadu';
+  }
+  if (lat >= 22.3 && lat <= 22.8 && lng >= 88.2 && lng <= 88.6) {
+    return 'Kolkata / West Bengal';
+  }
+  if (lat >= 18.3 && lat <= 18.7 && lng >= 73.7 && lng <= 74.1) {
+    return 'Pune / Maharashtra';
+  }
+
+  return `Remote Location (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`;
+}

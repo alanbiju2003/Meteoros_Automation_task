@@ -37,6 +37,33 @@ function MapRecenter({ center }: { center: [number, number] }) {
   return null;
 }
 
+// Dynamically resolve city/region from latitude & longitude coordinates
+function getCityFromCoordinates(lat: number, lng: number): string {
+  if (lat >= 28.3 && lat <= 28.9 && lng >= 76.8 && lng <= 77.6) {
+    return 'Delhi / NCR';
+  }
+  if (lat >= 18.8 && lat <= 19.4 && lng >= 72.7 && lng <= 73.3) {
+    return 'Mumbai / Maharashtra';
+  }
+  if (lat >= 12.8 && lat <= 13.1 && lng >= 77.4 && lng <= 77.7) {
+    return 'Bengaluru Campus';
+  }
+  if (lat >= 17.1 && lat <= 17.6 && lng >= 78.2 && lng <= 78.6) {
+    return 'Hyderabad / Telangana';
+  }
+  if (lat >= 12.8 && lat <= 13.3 && lng >= 80.0 && lng <= 80.4) {
+    return 'Chennai / Tamil Nadu';
+  }
+  if (lat >= 22.3 && lat <= 22.8 && lng >= 88.2 && lng <= 88.6) {
+    return 'Kolkata / West Bengal';
+  }
+  if (lat >= 18.3 && lat <= 18.7 && lng >= 73.7 && lng <= 74.1) {
+    return 'Pune / Maharashtra';
+  }
+
+  return `Remote (${lat.toFixed(3)}° N, ${lng.toFixed(3)}° E)`;
+}
+
 export default function ReplaySimulator() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [studentSearchTerm, setStudentSearchTerm] = useState<string>('');
@@ -157,6 +184,7 @@ export default function ReplaySimulator() {
   };
 
   const mapCenter: [number, number] = [testLat, testLng];
+  const detectedCity = getCityFromCoordinates(testLat, testLng);
 
   return (
     <div className="space-y-6 animate-in fade-in max-w-7xl mx-auto">
@@ -249,8 +277,8 @@ export default function ReplaySimulator() {
                 </Button>
                 <span className="text-sm font-bold text-emerald-400">{formatReplayHour(replayTime)}</span>
               </div>
-              <Badge className={evaluationResult?.isSpoofed || !evaluationResult?.isInsideGeofence ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}>
-                {evaluationResult?.isInsideGeofence ? `Geofence: ${geofenceRadius}m (Inside)` : `Remote / Delhi NCR (${evaluationResult?.distanceMeters || 1743000}m Away)`}
+              <Badge className={evaluationResult?.isSpoofed || !evaluationResult?.isInsideGeofence ? 'bg-rose-600 text-white font-bold' : 'bg-emerald-600 text-white font-bold'}>
+                {evaluationResult?.isInsideGeofence ? `Geofence: ${geofenceRadius}m (Campus)` : `${detectedCity} (${Math.round((evaluationResult?.distanceMeters || 1743000) / 1000)} km Away)`}
               </Badge>
             </div>
 
@@ -279,6 +307,7 @@ export default function ReplaySimulator() {
                     <div className="text-xs space-y-1">
                       <p className="font-bold">{selectedStudent?.name} ({selectedStudent?.rollNumber})</p>
                       <p className="text-muted-foreground">{selectedStudent?.department}</p>
+                      <p className="font-mono text-primary font-bold">{detectedCity}</p>
                       <p className="font-mono">Lat: {testLat.toFixed(6)}, Lng: {testLng.toFixed(6)}</p>
                     </div>
                   </Popup>
@@ -381,13 +410,17 @@ export default function ReplaySimulator() {
                   <span className="font-bold font-mono">{evaluationResult.trustScore}%</span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
+                  <span>Detected Location Region:</span>
+                  <span className="font-bold text-primary font-mono">{detectedCity}</span>
+                </div>
+                <div className="flex justify-between border-b pb-1.5">
                   <span>Distance from Campus Center:</span>
                   <span className="font-mono">{evaluationResult.distanceMeters}m ({Math.round(evaluationResult.distanceMeters / 1000)} km)</span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
                   <span>Spoofing / Location Anomaly:</span>
                   <Badge className={evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'bg-rose-600 text-white font-bold' : 'bg-emerald-600 text-white font-bold'}>
-                    {evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? 'OUTSIDE CAMPUS (DELHI / NCR)' : 'PASSED (NORMAL)'}
+                    {evaluationResult.isSpoofed || !evaluationResult.isInsideGeofence ? `OUTSIDE CAMPUS (${detectedCity.toUpperCase()})` : 'PASSED (NORMAL)'}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground pt-1">{evaluationResult.reason}</p>
