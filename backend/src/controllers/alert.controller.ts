@@ -26,6 +26,12 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
   const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
   const targetCcList = ccEmail ? [ccEmail, ...STAKEHOLDER_CC_EMAILS] : STAKEHOLDER_CC_EMAILS;
 
+  const istTimestamp = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+  }) + ' IST';
+
   const htmlTemplate = `
 <!DOCTYPE html>
 <html>
@@ -63,7 +69,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
         <div class="detail-row"><strong>Roll Number:</strong> <span>${rollNumber || 'CSE2023001'}</span></div>
         <div class="detail-row"><strong>Department:</strong> <span>Computer Science & Engineering</span></div>
         <div class="detail-row"><strong>Stakeholder CC List:</strong> <span>${targetCcList.join(', ')}</span></div>
-        <div class="detail-row"><strong>Timestamp:</strong> <span>${new Date().toLocaleString()}</span></div>
+        <div class="detail-row"><strong>Timestamp (IST):</strong> <span style="color: #0284c7; font-weight: bold;">${istTimestamp}</span></div>
         <div class="detail-row"><strong>Detection Status:</strong> <span style="color: #ef4444; font-weight: bold;">FLAGGED FOR REGISTRAR REVIEW</span></div>
       </div>
 
@@ -94,7 +100,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
       html: htmlTemplate,
     });
 
-    console.log('Real Email Dispatched Successfully via Gmail SMTP with CC:', info.messageId);
+    console.log('Real Email Dispatched Successfully via Gmail SMTP with CC (IST):', info.messageId);
 
     return res.json({
       status: 'SUCCESS',
@@ -116,6 +122,8 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 
   const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
   const targetCcList = ccEmail ? [ccEmail, ...STAKEHOLDER_CC_EMAILS] : STAKEHOLDER_CC_EMAILS;
+
+  const istDateStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -139,7 +147,7 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
   <div class="container">
     <div class="header">
       <h2 style="margin:0;">🌙 NIGHTLY EXECUTIVE THREAT & AUDIT REPORT</h2>
-      <p style="margin:4px 0 0 0; font-size:12px; color: #94a3b8;">Automated Daily Attendance Integrity Summary</p>
+      <p style="margin:4px 0 0 0; font-size:12px; color: #94a3b8;">Automated Daily Attendance Integrity Summary (${istDateStr} IST)</p>
     </div>
 
     <div class="summary-grid">
@@ -150,7 +158,7 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 
     <div class="body-content">
       <p>Respected Dean & Academic Stakeholders,</p>
-      <p>Here is the nightly summary report of students flagged for suspicious location activity or attendance anomalies today (<strong>${new Date().toLocaleDateString()}</strong>):</p>
+      <p>Here is the nightly summary report of students flagged for suspicious location activity or attendance anomalies today (<strong>${istDateStr} IST</strong>):</p>
 
       <table class="table">
         <thead>
@@ -197,11 +205,11 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
       from: '"SmartCampus Audit System" <alanthomasbiju01@gmail.com>',
       to: targetEmail,
       cc: targetCcList,
-      subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${new Date().toLocaleDateString()}`,
+      subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${istDateStr} IST`,
       html: htmlTemplate,
     });
 
-    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP with CC:', info.messageId);
+    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP with CC (IST):', info.messageId);
 
     return res.json({
       status: 'SUCCESS',

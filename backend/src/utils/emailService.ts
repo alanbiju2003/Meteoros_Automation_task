@@ -45,6 +45,13 @@ export const sendGeofenceAlertEmail = async ({
   try {
     const transporter = getTransporter();
 
+    // Format timestamp in Indian Standard Time (IST - Asia/Kolkata)
+    const istTimestamp = new Date().toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'medium',
+    }) + ' IST';
+
     const htmlTemplate = `
 <!DOCTYPE html>
 <html>
@@ -84,7 +91,7 @@ export const sendGeofenceAlertEmail = async ({
         <div class="detail-row"><strong>Department:</strong> <span>${department}</span></div>
         <div class="detail-row"><strong>Registered Device:</strong> <span>${deviceModel}</span></div>
         <div class="detail-row"><strong>Real Device Battery:</strong> <span style="color: #d97706; font-weight: bold;">${batteryLevel}% ⚡</span></div>
-        <div class="detail-row"><strong>Timestamp:</strong> <span>${new Date().toLocaleString()}</span></div>
+        <div class="detail-row"><strong>Timestamp (IST):</strong> <span style="color: #0284c7; font-weight: bold;">${istTimestamp}</span></div>
         <div class="detail-row"><strong>Stakeholder CC List:</strong> <span>${STAKEHOLDER_CC_EMAILS.join(', ')}</span></div>
       </div>
     </div>
@@ -106,7 +113,7 @@ export const sendGeofenceAlertEmail = async ({
       html: htmlTemplate,
     });
 
-    console.log(`✅ Automatic Gmail Geofence Alert sent to ${DEFAULT_TARGET_EMAIL} & CC ${STAKEHOLDER_CC_EMAILS.length} Stakeholders! Message ID: ${info.messageId}`);
+    console.log(`✅ Automatic Gmail Geofence Alert (IST Timestamp: ${istTimestamp}) sent to ${DEFAULT_TARGET_EMAIL} & CC ${STAKEHOLDER_CC_EMAILS.length} Stakeholders! Message ID: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error('Error sending automatic geofence email:', error);
