@@ -117,9 +117,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
   }
 };
 
-export const sendNightlyAuditReport = async (req: Request, res: Response) => {
-  const { recipientEmail, ccEmail } = req.body;
-
+export const sendNightlyAuditReportHelper = async (recipientEmail?: string, ccEmail?: string) => {
   const targetEmail = recipientEmail || 'alanthomasbiju01@gmail.com';
   const targetCcList = ccEmail ? [ccEmail, ...STAKEHOLDER_CC_EMAILS] : STAKEHOLDER_CC_EMAILS;
 
@@ -198,27 +196,40 @@ export const sendNightlyAuditReport = async (req: Request, res: Response) => {
 </html>
 `;
 
+  const transporter = getTransporter();
+
+  const info = await transporter.sendMail({
+    from: '"SmartCampus Audit System" <alanthomasbiju01@gmail.com>',
+    to: targetEmail,
+    cc: targetCcList,
+    subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${istDateStr} IST`,
+    html: htmlTemplate,
+  });
+
+  console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP with CC (IST):', info.messageId);
+
+  return {
+    targetEmail,
+    targetCcList,
+    messageId: info.messageId,
+    htmlPreview: htmlTemplate,
+  };
+};
+
+export const sendNightlyAuditReport = async (req: Request, res: Response) => {
+  const { recipientEmail, ccEmail } = req.body;
+
   try {
-    const transporter = getTransporter();
-
-    const info = await transporter.sendMail({
-      from: '"SmartCampus Audit System" <alanthomasbiju01@gmail.com>',
-      to: targetEmail,
-      cc: targetCcList,
-      subject: `📊 [NIGHTLY AUDIT] Daily Attendance & Security Integrity Summary - ${istDateStr} IST`,
-      html: htmlTemplate,
-    });
-
-    console.log('Real Nightly Report Dispatched Successfully via Gmail SMTP with CC (IST):', info.messageId);
+    const result = await sendNightlyAuditReportHelper(recipientEmail, ccEmail);
 
     return res.json({
       status: 'SUCCESS',
-      message: `REAL Nightly Threat & Audit Email Report dispatched to ${targetEmail} (CC: ${targetCcList.join(', ')})! Message ID: ${info.messageId}`,
-      recipientEmail: targetEmail,
-      ccEmail: targetCcList.join(', '),
-      messageId: info.messageId,
+      message: `REAL Nightly Threat & Audit Email Report dispatched to ${result.targetEmail} (CC: ${result.targetCcList.join(', ')})! Message ID: ${result.messageId}`,
+      recipientEmail: result.targetEmail,
+      ccEmail: result.targetCcList.join(', '),
+      messageId: result.messageId,
       reportDate: new Date().toISOString().split('T')[0],
-      htmlPreview: htmlTemplate,
+      htmlPreview: result.htmlPreview,
     });
   } catch (error: any) {
     console.error('Error sending real nightly audit report via Gmail SMTP:', error);

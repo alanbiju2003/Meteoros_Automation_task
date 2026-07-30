@@ -2,6 +2,7 @@ import http from 'http';
 import app from './app.js';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
+import { startDailyNightlyAuditScheduler } from './services/cronService.js';
 
 dotenv.config();
 
@@ -25,4 +26,5 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT} bound to 0.0.0.0`);
+  startDailyNightlyAuditScheduler();
 });
