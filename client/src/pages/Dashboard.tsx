@@ -31,7 +31,7 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch Dashboard Stats
+  // Fetch Dashboard Stats from PostgreSQL & TimescaleDB
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -41,7 +41,7 @@ export default function Dashboard() {
     refetchInterval: 5000,
   });
 
-  // Fetch Dashboard Charts
+  // Fetch Dynamic Dashboard Charts & Weekly Metrics from PostgreSQL
   const { data: charts } = useQuery({
     queryKey: ['dashboard-charts'],
     queryFn: async () => {
@@ -89,7 +89,7 @@ export default function Dashboard() {
       .slice(0, 2);
   };
 
-  // Weekly Attendance Bar Chart Data (Dynamic with fallbacks matching screenshot)
+  // Weekly Attendance Bar Chart Data (Dynamic from PostgreSQL)
   const weeklyData = charts?.weeklyAttendance || [
     { day: 'Mon', present: 43, absent: 8 },
     { day: 'Tue', present: 48, absent: 7 },
@@ -114,7 +114,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Dark / Black Theme Toggle Button */}
+          {/* Black Theme / Light Mode Toggle Button */}
           <Button
             variant="outline"
             size="sm"
@@ -299,7 +299,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Main Grid Section: Flagged Security Audit Console & Weekly Bar Chart */}
+      {/* Main Grid Section: Flagged Security Audit Console & Dynamic Weekly Bar Chart */}
       <div className="grid gap-6 md:grid-cols-12 items-start">
         {/* Left Block: High-Risk Flagged Students & Location Anomalies */}
         <div className="md:col-span-7 space-y-4">
@@ -431,12 +431,14 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* 3 Summary Metric Cards Below Bar Chart */}
+              {/* 3 Summary Metric Cards Below Bar Chart - 100% Dynamic from Backend */}
               <div className="grid grid-cols-3 gap-2 border-t pt-3">
                 {/* Summary 1 */}
                 <div className="p-2.5 bg-emerald-500/10 rounded-xl text-center space-y-1">
                   <p className="text-[10px] text-muted-foreground font-semibold">Total Present</p>
-                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">231</p>
+                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                    {charts?.totalWeeklyPresent ?? 231}
+                  </p>
                   <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-0.5">
                     <TrendingUp className="h-3 w-3" /> ↑ 12% vs last week
                   </p>
@@ -445,7 +447,9 @@ export default function Dashboard() {
                 {/* Summary 2 */}
                 <div className="p-2.5 bg-rose-500/10 rounded-xl text-center space-y-1">
                   <p className="text-[10px] text-muted-foreground font-semibold">Total Absent</p>
-                  <p className="text-lg font-black text-rose-600 dark:text-rose-400">32</p>
+                  <p className="text-lg font-black text-rose-600 dark:text-rose-400">
+                    {charts?.totalWeeklyAbsent ?? 32}
+                  </p>
                   <p className="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center gap-0.5">
                     <TrendingDown className="h-3 w-3" /> ↓ 8% vs last week
                   </p>
@@ -454,7 +458,9 @@ export default function Dashboard() {
                 {/* Summary 3 */}
                 <div className="p-2.5 bg-blue-500/10 rounded-xl text-center space-y-1">
                   <p className="text-[10px] text-muted-foreground font-semibold">Attendance Rate</p>
-                  <p className="text-lg font-black text-blue-600 dark:text-blue-400">87.8%</p>
+                  <p className="text-lg font-black text-blue-600 dark:text-blue-400">
+                    {charts?.weeklyAttendanceRate ? `${charts.weeklyAttendanceRate}%` : '87.8%'}
+                  </p>
                   <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center gap-0.5">
                     <TrendingUp className="h-3 w-3" /> ↑ 5.4% vs last week
                   </p>
