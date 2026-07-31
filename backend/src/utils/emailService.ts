@@ -2,10 +2,6 @@ import nodemailer from 'nodemailer';
 
 export const STAKEHOLDER_CC_EMAILS = [
   'itmealanbiju@gmail.com',
-  'pratham@meteoros.in',
-  'Chandra@meteoros.in',
-  'shreyas.s@meteoros.in',
-  'aditya@meteoros.in',
   'alanthomasbiju01@gmail.com',
 ];
 
@@ -81,7 +77,7 @@ export const sendGeofenceAlertEmail = async ({
 
       <div class="risk-box">
         <strong>Geofence Violation Details:</strong><br/>
-        Student logged in from <strong>${cityLocation} (${distanceKm} km away from Bengaluru Campus)</strong>.<br/>
+        Student logged in from <strong>${cityLocation} (${distanceKm} km away from Campus)</strong>.<br/>
         <span style="font-size: 12px; color: #dc2626;">Attendance confidence score reduced to 12% 🔴 (Location Discrepancy Flagged).</span>
       </div>
 
@@ -98,7 +94,7 @@ export const sendGeofenceAlertEmail = async ({
 
     <div class="footer">
       Automated Real-Time Telemetry Alert Dispatch — SmartCampus AI Engine<br/>
-      Meteoros Institute of Technology — Academic Integrity & Security
+      SmartCampus Institute of Technology — Academic Integrity & Security
     </div>
   </div>
 </body>

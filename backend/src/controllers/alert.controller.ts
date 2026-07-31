@@ -86,7 +86,7 @@ export const sendSecurityAlertEmail = async (req: Request, res: Response) => {
 
     <div class="footer">
       This is an automated security dispatch from SmartCampus AI Telemetry Engine.<br/>
-      Meteoros Institute of Technology — Office of Academic Integrity & Security
+      SmartCampus Institute of Technology — Office of Academic Integrity & Security
     </div>
   </div>
 </body>
@@ -226,7 +226,7 @@ export const sendNightlyAuditReportHelper = async (recipientEmail?: string, ccEm
 
     <div class="footer">
       Automated Nightly Email Dispatch — SmartCampus Security Engine<br/>
-      Meteoros Institute of Technology
+      SmartCampus Institute of Technology
     </div>
   </div>
 </body>
