@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, User, ShieldCheck, Smartphone, LogOut, Menu, Search, Clock, FileText } from 'lucide-react';
+import { Bell, Smartphone, LogOut, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
@@ -75,17 +74,8 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         </kbd>
       </div>
 
-      {/* Right Section: Actions, Notifications & Profile Avatar */}
+      {/* Right Section: Notifications & Profile Avatar */}
       <div className="flex items-center gap-2 sm:gap-3">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => navigate('/reports')}
-          className="hidden lg:flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-        >
-          <FileText className="h-4 w-4" /> Generate Report
-        </Button>
-
         {/* Notifications Icon */}
         <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
           <Bell className="h-5 w-5" />
@@ -109,7 +99,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem onClick={() => navigate('/')} className="cursor-pointer gap-2 text-xs">
-                <ShieldCheck className="h-4 w-4 text-primary" /> Admin Dashboard
+                <Smartphone className="h-4 w-4 text-primary" /> Admin Dashboard
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
