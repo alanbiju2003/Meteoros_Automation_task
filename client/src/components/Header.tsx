@@ -22,7 +22,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   return (
     <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-card px-4 sm:px-6 justify-between select-none">
-      {/* Mobile Hamburger Toggle & Active Role Indicator */}
+      {/* Mobile Hamburger Toggle & Active Portal Badge */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -34,33 +34,32 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">Current Account:</span>
         {isStudent ? (
-          <Badge className="bg-emerald-600 text-white font-semibold flex items-center gap-1 text-[11px] sm:text-xs">
-            <Smartphone className="h-3.5 w-3.5" /> Student ({user?.name})
+          <Badge className="bg-emerald-600 text-white font-semibold flex items-center gap-1 text.xs">
+            <Smartphone className="h-3.5 w-3.5" /> Student Portal
           </Badge>
         ) : (
-          <Badge className="bg-primary text-primary-foreground font-semibold flex items-center gap-1 text-[11px] sm:text-xs">
-            <ShieldCheck className="h-3.5 w-3.5" /> Super Admin Portal
+          <Badge className="bg-primary text-primary-foreground font-semibold flex items-center gap-1 text-xs">
+            <ShieldCheck className="h-3.5 w-3.5" /> Admin Console
           </Badge>
         )}
       </div>
 
-      {/* User Dropdown & Notifications */}
+      {/* User Profile Dropdown & Notifications */}
       <div className="flex items-center gap-2 sm:gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2 text-xs font-semibold px-2.5 sm:px-3">
-              <User className="h-4 w-4" />
-              <span className="max-w-[100px] sm:max-w-none truncate">{user ? user.name : 'System Admin'}</span>
+              <User className="h-4 w-4 text-primary" />
+              <span className="max-w-[120px] sm:max-w-none truncate">{user ? user.name : 'System Admin'}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>{user ? user.email : 'admin@college.edu'}</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-mono text-xs">{user ? user.email : 'admin@college.edu'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {isStudent ? (
               <DropdownMenuItem onClick={() => navigate('/student-dashboard')} className="cursor-pointer gap-2">
-                <Smartphone className="h-4 w-4 text-emerald-600" /> My Student Dashboard
+                <Smartphone className="h-4 w-4 text-emerald-600" /> My Student Portal
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem onClick={() => navigate('/')} className="cursor-pointer gap-2">
