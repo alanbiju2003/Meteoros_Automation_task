@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, User, ShieldCheck, Smartphone, LogOut } from 'lucide-react';
+import { Bell, User, ShieldCheck, Smartphone, LogOut, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-export function Header() {
+interface HeaderProps {
+  onToggleMobileMenu?: () => void;
+}
+
+export function Header({ onToggleMobileMenu }: HeaderProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -17,28 +21,38 @@ export function Header() {
   const isStudent = user?.role === 'Student';
 
   return (
-    <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-card px-6 justify-between">
-      {/* Active Role Indicator */}
+    <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-card px-4 sm:px-6 justify-between select-none">
+      {/* Mobile Hamburger Toggle & Active Role Indicator */}
       <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleMobileMenu}
+          className="md:hidden text-slate-700 dark:text-slate-200"
+          aria-label="Toggle Mobile Menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
         <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">Current Account:</span>
         {isStudent ? (
-          <Badge className="bg-emerald-600 text-white font-semibold flex items-center gap-1">
-            <Smartphone className="h-3.5 w-3.5" /> Student Portal ({user?.name})
+          <Badge className="bg-emerald-600 text-white font-semibold flex items-center gap-1 text-[11px] sm:text-xs">
+            <Smartphone className="h-3.5 w-3.5" /> Student ({user?.name})
           </Badge>
         ) : (
-          <Badge className="bg-primary text-primary-foreground font-semibold flex items-center gap-1">
+          <Badge className="bg-primary text-primary-foreground font-semibold flex items-center gap-1 text-[11px] sm:text-xs">
             <ShieldCheck className="h-3.5 w-3.5" /> Super Admin Portal
           </Badge>
         )}
       </div>
 
       {/* User Dropdown & Notifications */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 text-xs font-semibold">
+            <Button variant="outline" size="sm" className="gap-2 text-xs font-semibold px-2.5 sm:px-3">
               <User className="h-4 w-4" />
-              <span>{user ? user.name : 'System Admin'}</span>
+              <span className="max-w-[100px] sm:max-w-none truncate">{user ? user.name : 'System Admin'}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

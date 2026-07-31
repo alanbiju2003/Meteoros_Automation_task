@@ -19,6 +19,7 @@ import ReplaySimulator from './pages/ReplaySimulator';
 import SystemHealth from './pages/SystemHealth';
 import AIAssistant from './pages/AIAssistant';
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 
 // Configure Axios: If VITE_API_BASE_URL is set, use it; otherwise use relative /api path (proxied by Vite/Nginx)
 if (import.meta.env.VITE_API_BASE_URL) {
@@ -34,6 +35,9 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+
             <Route path="/" element={<DashboardLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="student-portal" element={<StudentPortal />} />

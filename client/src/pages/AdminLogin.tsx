@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Smartphone, AlertCircle } from 'lucide-react';
+import { ShieldCheck, AlertCircle } from 'lucide-react';
 
-export default function Login() {
+export default function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -16,7 +16,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
@@ -24,33 +24,33 @@ export default function Login() {
     try {
       const user = await login(email, password);
       if (user.role === 'Student') {
-        navigate('/student-dashboard');
-      } else {
-        navigate('/');
+        setErrorMsg('Access Denied: Student account credentials cannot access Admin Console.');
+        return;
       }
+      navigate('/');
     } catch (err: any) {
-      console.error('Login error:', err);
-      setErrorMsg(err.response?.data?.message || 'Invalid email or password. Please check your student credentials.');
+      console.error('Admin Login error:', err);
+      setErrorMsg(err.response?.data?.message || 'Invalid administrator email or password.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-4 relative overflow-hidden">
+    <div className="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 relative overflow-hidden">
       {/* Background Decorative Lighting */}
-      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-emerald-600/20 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
 
-      <Card className="w-full max-w-md border border-slate-800 bg-slate-900/90 text-slate-100 backdrop-blur-xl shadow-2xl z-10">
+      <Card className="w-full max-w-md border border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl shadow-2xl z-10">
         <CardHeader className="space-y-3 text-center pb-4">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-inner">
-            <Smartphone className="h-7 w-7" />
+          <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
+            <ShieldCheck className="h-7 w-7" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-extrabold tracking-tight">SmartCampus Portal</CardTitle>
+            <CardTitle className="text-2xl font-extrabold tracking-tight">System Administration</CardTitle>
             <CardDescription className="text-slate-400 text-xs mt-1">
-              Student Attendance & Telemetry Mobile Gateway
+              Authorized College Admin Security Console Access
             </CardDescription>
           </div>
         </CardHeader>
@@ -62,25 +62,25 @@ export default function Login() {
             </div>
           )}
 
-          {/* Student Login Form */}
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
+          {/* Admin Login Form */}
+          <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
             <div className="space-y-1.5 text-xs">
               <Label htmlFor="email" className="text-slate-300 font-semibold">
-                Student Email / ID
+                Administrator Email
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="e.g. student1@gmail.com"
+                placeholder="admin@college.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-600 py-5 text-xs"
+                className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-600 py-5 text-xs font-mono"
               />
             </div>
 
             <div className="space-y-1.5 text-xs">
-              <Label htmlFor="password" className="text-slate-300 font-semibold">Password</Label>
+              <Label htmlFor="password" className="text-slate-300 font-semibold">Security Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -95,14 +95,14 @@ export default function Login() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full font-semibold py-6 text-xs mt-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30"
+              className="w-full font-semibold py-6 text-xs mt-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
             >
-              {isLoading ? 'Authenticating...' : 'Sign In to Student Portal'}
+              {isLoading ? 'Authenticating Console...' : 'Authenticate Admin Session'}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="justify-center border-t border-slate-800/80 py-3 text-[11px] text-slate-500 font-mono">
-          <span>SmartCampus PERN Stack Authentication System</span>
+          <span>SmartCampus Administrator Access Control</span>
         </CardFooter>
       </Card>
     </div>

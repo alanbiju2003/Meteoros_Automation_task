@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, MapPin, Users, Activity, FileSpreadsheet, Settings, Smartphone, Zap, Gauge, Bot, BookOpen, Calendar, Bell } from 'lucide-react';
+import { LayoutDashboard, MapPin, Users, Activity, FileSpreadsheet, Settings, Smartphone, Zap, Gauge, Bot, BookOpen, Calendar, Bell, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const adminNavItems = [
+export const adminNavItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'AI Attendance Assistant', href: '/ai-assistant', icon: Bot },
   { name: 'Live Map', href: '/map', icon: MapPin },
@@ -15,42 +15,57 @@ const adminNavItems = [
   { name: 'System Settings', href: '/settings', icon: Settings },
 ];
 
-const studentNavItems = [
+export const studentNavItems = [
   { name: 'My Student Portal', href: '/student-dashboard', icon: Smartphone },
   { name: 'Class Timetable', href: '/student-schedule', icon: BookOpen },
   { name: 'Attendance History', href: '/student-history', icon: Calendar },
   { name: 'Alerts & Exemptions', href: '/student-alerts', icon: Bell },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export function Sidebar({ onClose }: SidebarProps) {
   const { user } = useAuth();
   const isStudent = user?.role === 'Student';
   const navItems = isStudent ? studentNavItems : adminNavItems;
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-card px-3 py-4">
+    <div className="flex h-full w-64 flex-col border-r bg-card px-3 py-4 select-none">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-3 pb-4 border-b">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold shadow-md ${
-          isStudent ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground'
-        }`}>
-          {isStudent ? <Smartphone className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
+      <div className="flex items-center justify-between px-3 pb-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold shadow-md ${
+            isStudent ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground'
+          }`}>
+            {isStudent ? <Smartphone className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
+          </div>
+          <div>
+            <h2 className="font-extrabold text-sm tracking-tight">SmartCampus</h2>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              {isStudent ? 'Student Mobile App' : 'College Admin Portal'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="font-extrabold text-sm tracking-tight">SmartCampus</h2>
-          <p className="text-[11px] text-muted-foreground font-mono">
-            {isStudent ? 'Student Mobile App' : 'College Admin Portal'}
-          </p>
-        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 text-muted-foreground hover:text-foreground rounded-lg"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 space-y-1 pt-4">
+      <nav className="flex-1 space-y-1 pt-4 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}
             end={item.href === '/'}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all',
@@ -62,8 +77,8 @@ export function Sidebar() {
               )
             }
           >
-            <item.icon className="h-4 w-4" />
-            {item.name}
+            <item.icon className="h-4 w-4 shrink-0" />
+            <span>{item.name}</span>
           </NavLink>
         ))}
       </nav>
