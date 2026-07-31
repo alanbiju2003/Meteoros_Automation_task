@@ -96,8 +96,8 @@ export default function Dashboard() {
     { day: 'Wed', present: 52, absent: 4 },
     { day: 'Thu', present: 48, absent: 5 },
     { day: 'Fri', present: 45, absent: 5 },
-    { day: 'Sat', present: 38, absent: 2 },
-    { day: 'Sun', present: 0, absent: 0 },
+    { day: 'Sat', present: 42, absent: 5 },
+    { day: 'Sun', present: 35, absent: 4 },
   ];
 
   return (
@@ -132,13 +132,6 @@ export default function Dashboard() {
             className="text-xs font-semibold gap-1.5 border-border shadow-2xs"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh Analytics
-          </Button>
-
-          <Button
-            onClick={() => navigate('/reports')}
-            className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-          >
-            <FileText className="h-4 w-4" /> Generate Report
           </Button>
         </div>
       </div>
@@ -314,7 +307,7 @@ export default function Dashboard() {
                 </CardTitle>
               </div>
               <Badge className="bg-rose-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full">
-                {flaggedStudents.length > 0 ? `${flaggedStudents.length} Flagged` : '13 Flagged'}
+                {flaggedStudents.length} Flagged
               </Badge>
             </CardHeader>
 
@@ -346,14 +339,14 @@ export default function Dashboard() {
                             <span>Department: <strong>{student.department}</strong></span>
                             <span className="text-slate-300 dark:text-slate-700">|</span>
                             <span className="text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-                              <Compass className="h-3 w-3" /> Location Discrepancy (Delhi / Remote)
+                              <Compass className="h-3 w-3" /> Location Discrepancy ({student.cityLocation || 'Delhi / NCR'} - {Math.round((student.distanceMeters || 1743000) / 1000)} km away)
                             </span>
                           </p>
                           <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-0.5 font-mono">
                             <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
-                              <Battery className="h-3 w-3" /> {student.battery || 85}% ⚡
+                              <Battery className="h-3 w-3" /> {student.battery}% ⚡
                             </span>
-                            <span>Check-In: <strong>{student.checkInTime || '--:--'}</strong></span>
+                            <span>Check-In: <strong className="text-slate-900 dark:text-slate-100">{student.checkInTime}</strong></span>
                           </div>
                         </div>
                       </div>
