@@ -17,13 +17,11 @@ export default function DashboardLayout() {
       return;
     }
 
-    // 2. Role-Based Access Control (RBAC): Restrict Student role to student pages
+    // 2. Role-Based Access Control (RBAC): Restrict Student role to 2 student pages
     if (user.role === 'Student') {
       const allowedStudentPaths = [
         '/student-dashboard',
         '/student-schedule',
-        '/student-history',
-        '/student-alerts',
       ];
       if (!allowedStudentPaths.includes(location.pathname)) {
         navigate('/student-dashboard', { replace: true });
@@ -65,7 +63,7 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

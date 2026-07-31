@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, MapPin, Users, Activity, FileSpreadsheet, Settings, Smartphone, Zap, Gauge, Bot, BookOpen, Calendar, Bell, X } from 'lucide-react';
+import { LayoutDashboard, MapPin, Users, Activity, FileSpreadsheet, Settings, Smartphone, Zap, Gauge, Bot, BookOpen, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const adminNavItems = [
@@ -16,10 +16,8 @@ export const adminNavItems = [
 ];
 
 export const studentNavItems = [
-  { name: 'My Student Portal', href: '/student-dashboard', icon: Smartphone },
+  { name: 'Phone App Check-In / Out', href: '/student-dashboard', icon: Smartphone },
   { name: 'Class Timetable', href: '/student-schedule', icon: BookOpen },
-  { name: 'Attendance History', href: '/student-history', icon: Calendar },
-  { name: 'Alerts & Exemptions', href: '/student-alerts', icon: Bell },
 ];
 
 interface SidebarProps {
@@ -68,11 +66,11 @@ export function Sidebar({ onClose }: SidebarProps) {
             onClick={onClose}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all',
+                'flex items-center gap-3 rounded-lg px-3 py-3 text-xs font-semibold transition-all',
                 isActive
                   ? isStudent
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                    : 'bg-primary text-primary-foreground shadow-sm font-bold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )
             }
